@@ -6,6 +6,7 @@ from detectors.dns_tunnel import DnsTunnelDetector as DNSTunnelDetector
 from detectors.encrypted_malware import EncryptedMalwareDetector
 from detectors.port_scan import PortScanDetector
 from detectors.exfiltration import ExfiltrationDetector
+from detectors.ml_detector import RealMLDetector
 
 ALL_DETECTORS = [
     DDoSDetector,
@@ -14,6 +15,7 @@ ALL_DETECTORS = [
     EncryptedMalwareDetector,
     PortScanDetector,
     ExfiltrationDetector,
+    RealMLDetector,
 ]
 
 __all__ = [
@@ -23,5 +25,6 @@ __all__ = [
     "EncryptedMalwareDetector",
     "PortScanDetector",
     "ExfiltrationDetector",
+    "RealMLDetector",
     "ALL_DETECTORS",
 ]

@@ -3,7 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate, Link, useLocation } from 'react
 import { 
   Shield, Activity, AlertTriangle, Clock, BarChart2, 
   Network, FileText, Cpu, HeartPulse, Search, 
-  Download, Play, Settings, History, BarChart3
+  Download, Play, Settings, History, BarChart3, Terminal
 } from 'lucide-react';
 import { connectWs } from './lib/websocket';
 import OverviewPage from './pages/OverviewPage';
@@ -14,6 +14,7 @@ import TimelinePage from './pages/TimelinePage';
 import AnalyticsPage from './pages/AnalyticsPage';
 import IpHistoryPage from './pages/IpHistoryPage';
 import DynamicGraphPage from './pages/DynamicGraphPage';
+import LinuxTelemetryPage from './pages/LinuxTelemetryPage';
 import NetworkPage from './pages/NetworkPage';
 import EvidencePage from './pages/EvidencePage';
 import DetectorsPage from './pages/DetectorsPage';
@@ -31,6 +32,7 @@ const navItems = [
   { path: '/monitoring', icon: Activity, label: 'Live Monitoring' },
   { path: '/ip-history', icon: History, label: 'IP Connection History' },
   { path: '/dynamic-graph', icon: BarChart3, label: 'Dynamic Forensic Graph' },
+  { path: '/linux-telemetry', icon: Terminal, label: 'Linux OS Kernel API' },
   { path: '/alerts', icon: AlertTriangle, label: 'Alerts' },
   { path: '/timeline', icon: Clock, label: 'Detection Timeline' },
   { path: '/analytics', icon: BarChart2, label: 'Threat Analytics' },
@@ -155,6 +157,7 @@ function App() {
             <Route path="/monitoring" element={<MonitoringPage />} />
             <Route path="/ip-history" element={<IpHistoryPage />} />
             <Route path="/dynamic-graph" element={<DynamicGraphPage />} />
+            <Route path="/linux-telemetry" element={<LinuxTelemetryPage />} />
             <Route path="/alerts" element={<AlertsPage />} />
             <Route path="/alerts/:id" element={<AlertDetailPage />} />
             <Route path="/timeline" element={<TimelinePage />} />

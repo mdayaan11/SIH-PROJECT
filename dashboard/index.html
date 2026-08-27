@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Sealed Enclave Watch - Real-time threat detection monitoring interface">
+    <title>Sealed Enclave Watch</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Layout Grid -->
+    <div class="dashboard-container">
+        
+        <!-- Top Bar -->
+        <header class="top-bar">
+            <div class="brand">
+                <div class="logo">SEW</div>
+                <h1>SEALED ENCLAVE WATCH</h1>
+            </div>
+            <div class="system-status">
+                <div class="status-item">
+                    <span class="label">Status</span>
+                    <span class="indicator green" id="ws-status-indicator"></span>
+                    <span class="value" id="ws-status-text">Connected</span>
+                </div>
+                <div class="status-item">
+                    <span class="label">EPS</span>
+                    <span class="value" id="events-per-sec">0</span>
+                </div>
+                <div class="status-item">
+                    <span class="label">Chain</span>
+                    <span class="indicator green" id="chain-status-indicator"></span>
+                </div>
+                <div class="status-item">
+                    <span class="label">Uptime</span>
+                    <span class="value" id="system-uptime">00:00:00</span>
+                </div>
+                <div class="status-item">
+                    <span class="label">Total Alerts</span>
+                    <span class="value" id="total-alerts">0</span>
+                </div>
+            </div>
+            <div class="current-time" id="current-time">00:00:00</div>
+        </header>
+
+        <!-- Left Sidebar: Filters & Actions -->
+        <aside class="left-sidebar">
+            <section class="filter-section">
+                <h2>Threat Types</h2>
+                <div class="threat-filters" id="threat-type-filters">
+                    <label class="checkbox-label"><input type="checkbox" value="ddos" checked><span class="dot ddos"></span> DDoS</label>
+                    <label class="checkbox-label"><input type="checkbox" value="c2" checked><span class="dot c2"></span> C2</label>
+                    <label class="checkbox-label"><input type="checkbox" value="dns" checked><span class="dot dns"></span> DNS Tunneling</label>
+                    <label class="checkbox-label"><input type="checkbox" value="malware" checked><span class="dot malware"></span> Malware</label>
+                    <label class="checkbox-label"><input type="checkbox" value="scan" checked><span class="dot scan"></span> Scanning</label>
+                    <label class="checkbox-label"><input type="checkbox" value="exfil" checked><span class="dot exfil"></span> Data Exfil</label>
+                </div>
+            </section>
+
+            <section class="filter-section">
+                <h2>Confidence Threshold</h2>
+                <div class="slider-container">
+                    <input type="range" id="confidence-slider" min="0" max="100" value="0">
+                    <span class="slider-value" id="confidence-value">0%</span>
+                </div>
+            </section>
+
+            <section class="filter-section">
+                <h2>Time Range</h2>
+                <select id="time-range-select" class="styled-select">
+                    <option value="5m">Last 5m</option>
+                    <option value="15m">Last 15m</option>
+                    <option value="1h">Last 1h</option>
+                    <option value="6h">Last 6h</option>
+                    <option value="24h">Last 24h</option>
+                    <option value="all" selected>All</option>
+                </select>
+            </section>
+
+            <section class="action-section">
+                <h2>Simulate Attack</h2>
+                <div class="button-group">
+                    <select id="attack-type-select" class="styled-select">
+                        <option value="ddos">DDoS</option>
+                        <option value="c2">C2 Beacon</option>
+                        <option value="dns">DNS Tunneling</option>
+                        <option value="malware">Malware Callback</option>
+                        <option value="scan">Port Scan</option>
+                        <option value="exfil">Data Exfil</option>
+                    </select>
+                    <button id="btn-generate-attack" class="btn primary">Generate</button>
+                    <button id="btn-run-all-attacks" class="btn secondary">Run All</button>
+                </div>
+            </section>
+
+            <section class="action-section">
+                <h2>Retro-Hunt</h2>
+                <div class="retro-hunt-form">
+                    <select id="ioc-type-select" class="styled-select">
+                        <option value="ip">IP Address</option>
+                        <option value="domain">Domain</option>
+                        <option value="ja3">JA3 Hash</option>
+                    </select>
+                    <input type="text" id="ioc-value-input" class="styled-input" placeholder="Enter IOC...">
+                    <button id="btn-retro-hunt" class="btn primary full-width">Hunt</button>
+                </div>
+            </section>
+        </aside>
+
+        <!-- Center: Live Feed -->
+        <main class="main-content">
+            <div class="feed-header">
+                <h2>Live Alert Feed</h2>
+                <div class="feed-controls">
+                    <button id="btn-clear-feed" class="btn small">Clear</button>
+                </div>
+            </div>
+            <div class="alert-feed" id="alert-feed">
+                <!-- Alerts will be injected here via JS -->
+            </div>
+        </main>
+
+        <!-- Right Sidebar: Stats & Intelligence -->
+        <aside class="right-sidebar">
+            <section class="stats-section">
+                <h2>Active Threats</h2>
+                <div class="threat-stats" id="threat-stats">
+                    <!-- Threat counts and sparklines injected via JS -->
+                </div>
+            </section>
+
+            <section class="stats-section">
+                <h2>Attack Stories</h2>
+                <div class="stories-list" id="stories-list">
+                    <!-- Grouped alerts injected via JS -->
+                </div>
+            </section>
+
+            <section class="stats-section">
+                <h2>Chain Integrity</h2>
+                <div class="chain-details">
+                    <div class="detail-row">
+                        <span>Length:</span>
+                        <span class="value" id="chain-length">0</span>
+                    </div>
+                    <div class="detail-row">
+                        <span>Last Hash:</span>
+                        <span class="value hash" id="chain-last-hash">N/A</span>
+                    </div>
+                    <div class="detail-row">
+                        <span>Status:</span>
+                        <span class="value badge success" id="chain-verify-status">Verified</span>
+                    </div>
+                    <button id="btn-verify-chain" class="btn secondary full-width mt-2">Verify Chain</button>
+                </div>
+            </section>
+        </aside>
+    </div>
+
+    <!-- Templates -->
+    <template id="alert-card-template">
+        <div class="alert-card" data-id="">
+            <div class="color-stripe"></div>
+            <div class="card-header">
+                <span class="threat-badge pill">Type</span>
+                <div class="confidence-gauge"></div>
+                <span class="timestamp">Just now</span>
+                <span class="count-badge hidden"></span>
+                <span class="retro-badge hidden">RETRO</span>
+            </div>
+            <div class="card-body">
+                <h3 class="alert-title">Alert Title</h3>
+                <p class="alert-desc">Description</p>
+                <div class="network-flow">
+                    <span class="src">Src</span>
+                    <span class="arrow">→</span>
+                    <span class="dst">Dst</span>
+                </div>
+            </div>
+            <div class="card-footer">
+                <div class="evidence-toggle">View Evidence ▾</div>
+                <div class="actions">
+                    <button class="btn action-btn btn-tp">Mark TP</button>
+                    <button class="btn action-btn btn-fp">Mark FP</button>
+                    <button class="btn action-btn btn-dl">Download</button>
+                </div>
+            </div>
+            <div class="evidence-panel hidden">
+                <pre class="evidence-content"></pre>
+            </div>
+        </div>
+    </template>
+
+    <script src="app.js"></script>
+</body>
+</html>

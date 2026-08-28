@@ -120,15 +120,12 @@ export const api = {
         const data = await res.json();
         if (Array.isArray(data)) return data;
         if (data && Array.isArray(data.alerts)) return data.alerts;
-        return data;
+        return [];
       }
     } catch (err) {
-      // Fallback
+      console.warn("Backend fetchAlerts warning:", err);
     }
-    let res = DEMO_ALERTS;
-    if (threatType) res = res.filter(a => a.threat_type === threatType);
-    if (minConfidence) res = res.filter(a => a.confidence >= minConfidence);
-    return res.slice(0, limit || 100);
+    return [];
   },
 
   fetchAlert: async (id: string): Promise<ThreatAlert | null> => {
@@ -140,7 +137,7 @@ export const api = {
         return data;
       }
     } catch (err) {}
-    return DEMO_ALERTS.find(a => a.alert_id === id || (a as any).id === id) || DEMO_ALERTS[0];
+    return null;
   },
 
   fetchStatus: async (): Promise<SystemStatus | null> => {
@@ -148,18 +145,7 @@ export const api = {
       const res = await fetch(`${API_BASE}/status`);
       if (res.ok) return await res.json();
     } catch (err) {}
-    return {
-      uptime_seconds: 14400,
-      events_processed: 148520,
-      events_per_second: 345,
-      active_detectors: 6,
-      alerts_total: DEMO_ALERTS.length,
-      alerts_last_hour: DEMO_ALERTS.length,
-      chain_length: DEMO_ALERTS.length,
-      chain_intact: true,
-      storage_days: 30,
-      active_stories: 2
-    };
+    return null;
   },
 
   fetchEvidence: async (alertId: string): Promise<EvidencePackage | null> => {

@@ -58,42 +58,10 @@ export const connectWs = () => {
     useStore.getState().setWsConnected(true);
   }
 
-  // Resilient fallback socket stream generator to guarantee ZERO random disconnections on Vercel
-  if (!fallbackInterval) {
-    useStore.getState().setWsConnected(true);
-    fallbackInterval = setInterval(() => {
-      const srcIps = ['192.168.1.50', '192.168.1.75', '192.168.1.80', '10.0.0.200', '172.16.0.45'];
-      const dstIps = ['10.0.0.1', '8.8.8.8', '45.33.32.156', '185.220.101.1', '1.1.1.1'];
-      const protos = ['tcp', 'udp', 'dns', 'ssl'];
-
-      useStore.getState().addLiveEvent({
-        ts: Date.now() / 1000,
-        uid: `C${Math.random().toString(36).substring(2, 10).toUpperCase()}`,
-        src_ip: srcIps[Math.floor(Math.random() * srcIps.length)],
-        src_port: Math.floor(Math.random() * 50000) + 1024,
-        dst_ip: dstIps[Math.floor(Math.random() * dstIps.length)],
-        dst_port: 443,
-        proto: protos[Math.floor(Math.random() * protos.length)],
-        log_type: 'conn',
-        orig_bytes: Math.floor(Math.random() * 2000) + 64,
-        resp_bytes: Math.floor(Math.random() * 8000) + 128,
-        conn_state: 'SF'
-      });
-
-      if (!useStore.getState().wsConnected) {
-        useStore.getState().setWsConnected(true);
-      }
-    }, 1000);
-  }
-
   return () => {
     if (socket) {
       socket.disconnect();
       socket = null;
-    }
-    if (fallbackInterval) {
-      clearInterval(fallbackInterval);
-      fallbackInterval = null;
     }
   };
 };

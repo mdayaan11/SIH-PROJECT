@@ -3,6 +3,6 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "build": "if [ -d \"frontend\" ]; then cd frontend && npm run build; else npm run build; fi"
+    "build": "npm run build --prefix frontend"
   }
 }

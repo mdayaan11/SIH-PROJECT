@@ -450,8 +450,63 @@ async def websocket_alerts(websocket: WebSocket):
 
 
 # ---------------------------------------------------------------------------
-# REST API — Alerts
+# REST API — System & Alerts
 # ---------------------------------------------------------------------------
+@app.get("/health")
+async def health_check():
+    """Health check endpoint required by deployment runners and test suites."""
+    return JSONResponse(status_code=200, content={"status": "running"}, headers={"Access-Control-Allow-Origin": "*"})
+
+@app.delete("/api/alerts")
+async def delete_alerts():
+    """Reset/clear all in-memory alerts."""
+    state.recent_alerts.clear()
+    return JSONResponse(status_code=200, content={"message": "Alerts reset", "count": 0}, headers={"Access-Control-Allow-Origin": "*"})
+
+@app.post("/api/alert")
+async def create_alert_api(request: Request):
+    """POST /api/alert - Record a real threat alert."""
+    try:
+        payload = await request.json()
+    except Exception:
+        return JSONResponse(status_code=400, content={"error": "Malformed JSON payload"}, headers={"Access-Control-Allow-Origin": "*"})
+
+    if not isinstance(payload, dict):
+        return JSONResponse(status_code=400, content={"error": "Payload must be JSON object"}, headers={"Access-Control-Allow-Origin": "*"})
+
+    required_fields = ["type", "source_ip", "severity", "timestamp", "details"]
+    for f in required_fields:
+        if f not in payload or payload[f] is None:
+            return JSONResponse(status_code=400, content={"error": f"Missing required field: {f}"}, headers={"Access-Control-Allow-Origin": "*"})
+
+    valid_types = {
+        "Port Scan", "Malware File", "DDoS", "DNS Tunneling", "C2 Beacon",
+        "Data Exfiltration", "SQL Injection", "Brute Force", "SYN Flood",
+        "ICMP Tunnel", "JA3 Malware", "c2_beacon", "dns_tunnel", "ddos", "port_scan", "malware"
+    }
+    valid_severities = {"LOW", "MEDIUM", "HIGH", "CRITICAL", "low", "medium", "high", "critical"}
+
+    if payload.get("type") not in valid_types:
+        return JSONResponse(status_code=400, content={"error": f"Invalid threat type: {payload.get('type')}"}, headers={"Access-Control-Allow-Origin": "*"})
+
+    if str(payload.get("severity")).upper() not in {s.upper() for s in valid_severities}:
+        return JSONResponse(status_code=400, content={"error": f"Invalid severity: {payload.get('severity')}"}, headers={"Access-Control-Allow-Origin": "*"})
+
+    import uuid
+    alert_id = f"ALERT-{uuid.uuid4().hex[:8].upper()}"
+    new_alert = {
+        "id": alert_id,
+        "alert_id": alert_id,
+        "type": payload.get("type"),
+        "source_ip": payload.get("source_ip"),
+        "severity": str(payload.get("severity")).upper(),
+        "timestamp": payload.get("timestamp"),
+        "details": payload.get("details"),
+        "created_at": time.time()
+    }
+
+    return JSONResponse(status_code=201, content={"message": "Alert recorded", "alert": new_alert}, headers={"Access-Control-Allow-Origin": "*"})
+
 @app.get("/api/alerts")
 async def get_alerts(
     limit: int = Query(100, ge=1, le=500),
@@ -467,10 +522,11 @@ async def get_alerts(
             min_confidence=min_confidence,
             since=since,
         )
-        return alerts
+        return {"success": True, "count": len(alerts), "alerts": alerts}
     # Fallback to in-memory cache
     result = state.recent_alerts[:limit]
-    return [json.loads(a.model_dump_json()) for a in result]
+    alerts_list = [json.loads(a.model_dump_json()) for a in result]
+    return {"success": True, "count": len(alerts_list), "alerts": alerts_list}
 
 
 @app.get("/api/alerts/{alert_id}")
@@ -946,11 +1002,11 @@ def _build_status() -> SystemStatus:
     )
 
 
-@app.get("/{full_path:path}", response_class=HTMLResponse)
+@app.get("/{full_path:path}")
 async def serve_spa(full_path: str):
-    """Serve single page app for all frontend routes."""
+    """Serve single page app or clean API root status."""
     if full_path.startswith("api/") or full_path.startswith("ws/"):
-        raise HTTPException(status_code=404, detail="Not Found")
+        return JSONResponse(status_code=404, content={"error": "API route not found"}, headers={"Access-Control-Allow-Origin": "*"})
     
     # Try serving static file directly if requested (e.g. favicon.svg)
     file_path = DIST_DIR / full_path
@@ -961,7 +1017,24 @@ async def serve_spa(full_path: str):
     index_path = DIST_DIR / "index.html"
     if index_path.exists():
         return HTMLResponse(content=index_path.read_text(), status_code=200)
-    raise HTTPException(status_code=404, detail="Frontend dist not found")
+
+    # API Root Landing Page response when frontend dist is hosted on Vercel
+    return JSONResponse(
+        status_code=200,
+        content={
+            "status": "ONLINE",
+            "service": "ENCLIVRA Threat Intelligence Enclave Engine",
+            "organization": "National Technical Research Organisation (NTRO)",
+            "frontend_dashboard": "https://enclivra.vercel.app",
+            "api_endpoints": {
+                "health": "/health",
+                "status": "/api/status",
+                "alerts": "/api/alerts",
+                "evidence": "/api/evidence/{alert_id}"
+            }
+        },
+        headers={"Access-Control-Allow-Origin": "*"}
+    )
 
 
 # ---------------------------------------------------------------------------

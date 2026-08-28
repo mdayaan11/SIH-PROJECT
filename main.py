@@ -464,6 +464,19 @@ async def websocket_alerts(websocket: WebSocket):
         logger.info(f"WebSocket client disconnected ({len(state.ws_clients)} total)")
 
 
+# Global OPTIONS preflight handler for CORS compatibility
+@app.options("/{full_path:path}")
+async def options_global_preflight(full_path: str):
+    from fastapi.responses import Response
+    return Response(
+        status_code=200,
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS, HEAD",
+            "Access-Control-Allow-Headers": "*",
+        }
+    )
+
 # ---------------------------------------------------------------------------
 # REST API — System & Alerts
 # ---------------------------------------------------------------------------

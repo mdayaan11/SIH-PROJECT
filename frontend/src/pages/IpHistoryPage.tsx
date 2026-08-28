@@ -9,19 +9,29 @@ export default function IpHistoryPage() {
   const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
-    api.fetchAlerts(500).then(setAlerts);
+    api.fetchAlerts(500).then((data) => {
+      if (Array.isArray(data)) {
+        setAlerts(data);
+      } else if (data && Array.isArray((data as any).alerts)) {
+        setAlerts((data as any).alerts);
+      }
+    });
   }, []);
 
   const ipCounts: { [ip: string]: { count: number, last_seen: number, threat_types: Set<string>, dests: Set<string>, events: any[] } } = {};
   
-  alerts.forEach(a => {
-    const src = (a.source_ips && a.source_ips[0]) || a.src_ip || '192.168.1.75';
+  const alertList = Array.isArray(alerts) ? alerts : [];
+  alertList.forEach(a => {
+    const src = (a.source_ips && a.source_ips[0]) || a.source_ip || a.src_ip || '192.168.1.75';
+    const dst = (a.dest_ips && a.dest_ips[0]) || a.dest_ip || a.dst_ip || '10.0.0.100';
+    const threat = a.threat_type || a.threat_class_name || a.type || 'PORT SCAN';
+    
     if (!ipCounts[src]) {
       ipCounts[src] = { count: 0, last_seen: a.timestamp || Date.now()/1000, threat_types: new Set(), dests: new Set(), events: [] };
     }
     ipCounts[src].count += (a.collapsed_count || 1);
-    if (a.threat_type) ipCounts[src].threat_types.add(a.threat_type);
-    if (a.dest_ips && a.dest_ips[0]) ipCounts[src].dests.add(a.dest_ips[0]);
+    if (threat) ipCounts[src].threat_types.add(String(threat));
+    if (dst) ipCounts[src].dests.add(String(dst));
     ipCounts[src].events.push(a);
   });
 

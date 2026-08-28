@@ -115,7 +115,12 @@ export const api = {
       if (threatType) params.append('threat_type', threatType);
       if (minConfidence) params.append('min_confidence', minConfidence.toString());
       const res = await fetch(`${API_BASE}/alerts?${params.toString()}`);
-      if (res.ok) return await res.json();
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data)) return data;
+        if (data && Array.isArray(data.alerts)) return data.alerts;
+        return data;
+      }
     } catch (err) {
       // Fallback
     }
@@ -128,7 +133,11 @@ export const api = {
   fetchAlert: async (id: string): Promise<ThreatAlert | null> => {
     try {
       const res = await fetch(`${API_BASE}/alerts/${id}`);
-      if (res.ok) return await res.json();
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.alert) return data.alert;
+        return data;
+      }
     } catch (err) {}
     return DEMO_ALERTS.find(a => a.alert_id === id || (a as any).id === id) || DEMO_ALERTS[0];
   },
@@ -155,7 +164,11 @@ export const api = {
   fetchEvidence: async (alertId: string): Promise<EvidencePackage | null> => {
     try {
       const res = await fetch(`${API_BASE}/evidence/${alertId}`);
-      if (res.ok) return await res.json();
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.evidence) return data.evidence;
+        return data;
+      }
     } catch (err) {}
     const alert = DEMO_ALERTS.find(a => a.alert_id === alertId) || DEMO_ALERTS[0];
     return {

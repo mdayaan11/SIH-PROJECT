@@ -1,6 +1,7 @@
 import { ThreatType, Severity, ThreatAlert, SystemStatus, EvidencePackage, AlertChainEntry, DeviceProfile } from '../types';
 
-const API_BASE = (import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL + '/api' : '/api');
+const DEFAULT_BACKEND_URL = 'https://sih-project-d3r8.onrender.com';
+const API_BASE = (import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace(/\/+$/, '') + '/api' : `${DEFAULT_BACKEND_URL}/api`);
 
 // Fallback synthetic demonstration dataset for static web hosts (Netlify / Vercel / GitHub Pages)
 const DEMO_ALERTS: ThreatAlert[] = [

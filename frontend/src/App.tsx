@@ -7,6 +7,7 @@ import {
   LayoutDashboard, ChevronDown, ChevronRight
 } from 'lucide-react';
 import { connectWs } from './lib/websocket';
+import { api } from './lib/api';
 import { IntegrityLockdownModal } from './components/IntegrityLockdownModal';
 import OverviewPage from './pages/OverviewPage';
 import MonitoringPage from './pages/MonitoringPage';
@@ -205,8 +206,27 @@ function Sidebar() {
 function App() {
   useEffect(() => {
     const disconnect = connectWs();
+
+    // Poll live production backend metrics & real alerts
+    const syncBackend = async () => {
+      try {
+        const liveStatus = await api.fetchStatus();
+        if (liveStatus) {
+          useStore.getState().setStatus(liveStatus);
+        }
+        const liveAlerts = await api.fetchAlerts(500);
+        if (Array.isArray(liveAlerts) && liveAlerts.length > 0) {
+          useStore.getState().setAlerts(liveAlerts);
+        }
+      } catch (e) {}
+    };
+
+    syncBackend();
+    const interval = setInterval(syncBackend, 3000);
+
     return () => {
       disconnect?.();
+      clearInterval(interval);
     };
   }, []);
 

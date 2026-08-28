@@ -7,9 +7,8 @@ let fallbackInterval: any = null;
 export const connectWs = () => {
   const store = useStore.getState();
 
-  // Determine Socket.IO server URL or fallback to relative window origin
-  const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:';
-  const socketUrl = import.meta.env.VITE_SOCKETIO_URL || import.meta.env.VITE_WS_URL || `${protocol}//${window.location.host}`;
+  const DEFAULT_BACKEND_URL = 'https://sih-project-d3r8.onrender.com';
+  const socketUrl = import.meta.env.VITE_SOCKETIO_URL || import.meta.env.VITE_WS_URL || DEFAULT_BACKEND_URL;
 
   try {
     socket = io(socketUrl, {

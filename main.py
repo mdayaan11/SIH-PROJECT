@@ -409,14 +409,29 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS — allow React dev server & local connections
+# CORS — allow cross-origin requests from Vercel frontend and all origins
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.middleware("http")
+async def force_cors_headers(request: Request, call_next):
+    if request.method == "OPTIONS":
+        from fastapi.responses import Response
+        res = Response(status_code=200)
+        res.headers["Access-Control-Allow-Origin"] = "*"
+        res.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
+        res.headers["Access-Control-Allow-Headers"] = "*"
+        return res
+    response = await call_next(request)
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
+    response.headers["Access-Control-Allow-Headers"] = "*"
+    return response
 
 # Static Files for Built React Frontend
 DIST_DIR = PROJECT_ROOT / "frontend" / "dist"

@@ -67,11 +67,11 @@ export default function OverviewPage() {
 
       {/* Top 6 Metric Cards Row */}
       <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
-        <StatCard label="UPTIME (H)" value={uptimeHours || 4} icon={Clock} />
-        <StatCard label="EVENTS PROCESSED" value={(status?.events_processed || 148520).toLocaleString()} icon={Activity} variant="cyan" />
-        <StatCard label="ACTIVE DETECTORS" value={status?.active_detectors || 6} icon={Cpu} variant="green" />
-        <StatCard label="TOTAL ALERTS" value={status?.alerts_total || alerts.length || 6} icon={Shield} variant="red" />
-        <StatCard label="VERIFIED CHAIN" value={status?.chain_length || 6} icon={FileText} variant="orange" />
+        <StatCard label="UPTIME (H)" value={status ? uptimeHours : 0} icon={Clock} />
+        <StatCard label="EVENTS PROCESSED" value={(status?.events_processed ?? 0).toLocaleString()} icon={Activity} variant="cyan" />
+        <StatCard label="ACTIVE DETECTORS" value={status?.active_detectors ?? 7} icon={Cpu} variant="green" />
+        <StatCard label="TOTAL ALERTS" value={status?.alerts_total ?? alerts.length} icon={Shield} variant="red" />
+        <StatCard label="VERIFIED CHAIN" value={status?.chain_length ?? 0} icon={FileText} variant="orange" />
         <StatCard label="SYSTEM HEALTH" value={status?.chain_intact !== false ? '100% HEALTHY' : 'DEGRADED'} icon={HeartPulse} variant={status?.chain_intact !== false ? 'green' : 'red'} />
       </div>
 

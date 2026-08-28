@@ -21,16 +21,7 @@ interface AppState {
 
 export const useStore = create<AppState>((set, get) => ({
   alerts: [],
-  status: {
-    uptime_seconds: 14400,
-    events_processed: 148520,
-    events_per_second: 145,
-    active_detectors: 6,
-    alerts_total: 6,
-    alerts_last_hour: 2,
-    chain_length: 1024,
-    chain_intact: true,
-  },
+  status: null,
   wsConnected: true,
   liveEvents: [],
   selectedPage: 'overview',

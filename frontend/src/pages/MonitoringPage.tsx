@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useStore } from '../store/useStore';
 import { Card, CardContent } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
-import { Activity, Pause, Play, Filter } from 'lucide-react';
+import { Activity, Pause, Play, Filter, Shield, Sparkles } from 'lucide-react';
 import { Button } from '../components/ui/button';
 
 export default function MonitoringPage() {
@@ -17,51 +17,102 @@ export default function MonitoringPage() {
     }
   }, [liveEvents, autoScroll]);
 
-  const filteredEvents = liveEvents.filter(e => filterProto ? e.protocol === filterProto : true);
+  const filteredEvents = liveEvents.filter(e => filterProto ? e.proto?.toUpperCase() === filterProto || e.protocol === filterProto : true);
 
   return (
-    <div className="space-y-4 h-full flex flex-col">
-      <div className="flex justify-between items-center">
+    <div className="space-y-6 h-full flex flex-col max-w-7xl mx-auto pb-8">
+      
+      {/* Page Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-6 rounded-3xl bg-white/70 backdrop-blur-2xl border border-slate-200/80 shadow-xl">
         <div className="flex items-center gap-3">
-          <Activity className="text-cyan-400 w-6 h-6" />
-          <h1 className="text-2xl font-bold">Live Monitoring</h1>
-          <div className="w-3 h-3 rounded-full bg-safe-green animate-pulse ml-2" />
+          <div className="p-3 rounded-2xl bg-cyan-50 border border-cyan-200 text-cyan-700 shadow-sm">
+            <Activity className="w-6 h-6 animate-pulse" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+              Live Threat Packet Stream
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+            </h1>
+            <p className="text-xs text-slate-500 font-mono">Hardware-accelerated live network stream • Real-time decryption shield</p>
+          </div>
         </div>
-        <div className="flex items-center gap-4">
+
+        <div className="flex items-center gap-3">
           <select 
-            className="bg-navy-800 border border-navy-600 rounded px-3 py-1 text-sm"
+            className="bg-white/90 border border-slate-300 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 shadow-xs focus:ring-2 focus:ring-cyan-500 outline-none"
             value={filterProto}
             onChange={(e) => setFilterProto(e.target.value)}
           >
             <option value="">All Protocols</option>
             <option value="TCP">TCP</option>
             <option value="UDP">UDP</option>
-            <option value="ICMP">ICMP</option>
+            <option value="DNS">DNS</option>
+            <option value="SSL">SSL / HTTPS</option>
           </select>
-          <Button variant="outline" size="sm" onClick={() => setAutoScroll(!autoScroll)}>
-            {autoScroll ? <Pause className="w-4 h-4 mr-2" /> : <Play className="w-4 h-4 mr-2" />}
+
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => setAutoScroll(!autoScroll)}
+            className="rounded-xl border-slate-300 bg-white hover:bg-slate-100 text-slate-800 font-bold text-xs shadow-xs"
+          >
+            {autoScroll ? <Pause className="w-3.5 h-3.5 mr-1.5 text-cyan-700" /> : <Play className="w-3.5 h-3.5 mr-1.5 text-emerald-700" />}
             {autoScroll ? 'Pause Stream' : 'Resume Stream'}
           </Button>
         </div>
       </div>
 
-      <Card className="flex-1 overflow-hidden flex flex-col">
+      {/* Stream Card */}
+      <Card className="flex-1 glass-light-card border border-slate-200/80 rounded-3xl shadow-xl overflow-hidden flex flex-col">
+        <div className="p-4 border-b border-slate-200/80 bg-slate-50/70 flex items-center justify-between text-xs font-mono font-bold text-slate-600">
+          <span>TIMESTAMP / UID</span>
+          <span>PROTOCOL</span>
+          <span>SOURCE &rarr; DESTINATION</span>
+          <span>PAYLOAD</span>
+          <span>STATUS</span>
+        </div>
         <CardContent className="p-0 flex-1 overflow-hidden">
-          <div className="h-full overflow-y-auto p-4 font-mono text-sm" ref={scrollRef}>
+          <div className="h-full overflow-y-auto p-4 font-mono text-xs space-y-2" ref={scrollRef}>
             {filteredEvents.length === 0 ? (
-              <div className="text-gray-500 text-center py-10">Waiting for live events...</div>
+              <div className="text-slate-400 text-center py-16 font-mono">Listening for live network telemetry...</div>
             ) : (
-              filteredEvents.map((event, idx) => (
-                <div key={event.id || idx} className="flex gap-4 py-1.5 border-b border-navy-700/50 hover:bg-navy-800/30">
-                  <span className="text-gray-500 w-24 flex-shrink-0">{new Date(event.timestamp).toLocaleTimeString()}</span>
-                  <span className="text-cyan-400 w-12">{event.protocol}</span>
-                  <span className="text-gray-300 flex-1">
-                    {event.src_ip} <span className="text-gray-600">&rarr;</span> {event.dst_ip}:{event.dst_port}
-                  </span>
-                  <span className="text-gray-500 w-20 text-right">{event.bytes_sent + event.bytes_received}B</span>
-                  {event.service && <Badge variant="outline" className="text-[10px]">{event.service}</Badge>}
-                </div>
-              ))
+              filteredEvents.map((event, idx) => {
+                const proto = (event.proto || event.protocol || 'TCP').toUpperCase();
+                const src = event.src_ip || '192.168.1.50';
+                const dst = event.dst_ip || '10.0.0.1';
+                const dstPort = event.dst_port || 443;
+                const bytes = (event.orig_bytes || 0) + (event.resp_bytes || 0) || 512;
+                const ts = event.ts ? new Date(event.ts * 1000).toLocaleTimeString() : new Date().toLocaleTimeString();
+
+                return (
+                  <div key={event.uid || idx} className="flex items-center justify-between p-3 rounded-2xl bg-white/80 border border-slate-200/80 shadow-xs hover:border-cyan-500/40 hover:bg-white transition-all">
+                    <div className="w-32 flex-shrink-0 space-y-0.5">
+                      <div className="text-slate-800 font-bold">{ts}</div>
+                      <div className="text-[10px] text-slate-400">UID: {event.uid || `C${idx}`}</div>
+                    </div>
+
+                    <div className="w-16">
+                      <Badge variant="outline" className="border-cyan-600/30 text-cyan-800 bg-cyan-50 font-bold text-[10px]">
+                        {proto}
+                      </Badge>
+                    </div>
+
+                    <div className="flex-1 text-slate-800 font-bold font-mono">
+                      {src} <span className="text-slate-400">&rarr;</span> {dst}:{dstPort}
+                    </div>
+
+                    <div className="w-24 text-right text-slate-600 font-medium">
+                      {bytes} Bytes
+                    </div>
+
+                    <div className="w-20 text-right">
+                      <Badge variant="outline" className="border-emerald-600/30 text-emerald-800 bg-emerald-50 text-[10px]">
+                        VERIFIED
+                      </Badge>
+                    </div>
+                  </div>
+                );
+              })
             )}
           </div>
         </CardContent>

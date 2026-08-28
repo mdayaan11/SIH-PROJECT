@@ -39,38 +39,40 @@ export default function DemoPage() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="bg-threat-red text-white p-4 rounded-lg font-bold text-center text-lg uppercase tracking-widest shadow-lg shadow-red-900/50">
-        DEMO MODE - SYNTHETIC TELEMETRY GENERATION
+    <div className="space-y-6 max-w-5xl mx-auto pb-12 text-slate-950 font-sans">
+      
+      {/* Warning Header */}
+      <div className="bg-slate-900 text-white p-4 rounded-2xl font-black text-center text-sm uppercase tracking-widest shadow-lg">
+        ENCLIVRA — TELEMETRY DEMO CONTROL
       </div>
       
-      <Card>
-        <CardHeader>
-          <CardTitle>Generate Network Events</CardTitle>
+      <Card className="glass-light-card border border-slate-300 rounded-3xl shadow-xl">
+        <CardHeader className="border-b border-slate-200/80 pb-3 bg-slate-50/80">
+          <CardTitle className="text-base font-black text-slate-950">Generate Synthetic Threat Scenarios</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="pt-5 space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {attacks.map(attack => (
               <Button 
                 key={attack.type}
                 variant="outline" 
-                className="justify-start h-auto py-3 px-4 border-navy-600 hover:border-cyan-500 hover:bg-cyan-950/30"
+                className="justify-start h-auto py-3.5 px-4 border-slate-300 bg-white hover:bg-slate-100 text-slate-950 font-black text-xs rounded-2xl shadow-xs"
                 onClick={() => handleGenerate(attack.type)}
                 disabled={loading !== null}
               >
-                <Play className="w-4 h-4 mr-3 text-cyan-500" />
+                <Play className="w-4 h-4 mr-3 text-cyan-800" />
                 {attack.label}
               </Button>
             ))}
           </div>
-          <div className="mt-6 pt-6 border-t border-navy-700">
+
+          <div className="pt-4 border-t border-slate-200">
             <Button 
-              variant="destructive" 
-              className="w-full"
+              className="w-full bg-slate-900 hover:bg-slate-800 text-white font-black text-xs py-3 rounded-2xl shadow-md"
               onClick={handleRunAll}
               disabled={loading !== null}
             >
-              <Play className="w-4 h-4 mr-2" /> Run All Attacks
+              <Play className="w-4 h-4 mr-2" /> Run Full Attack Sequence
             </Button>
           </div>
         </CardContent>

@@ -10,34 +10,34 @@ export function ThreatBadge({ type }: { type?: string }) {
   switch (safeType) {
     case 'ddos':
     case ThreatType.DDOS:
-      colorClass = 'border-threat-red text-threat-red bg-red-950/30';
+      colorClass = 'border-red-300 text-red-900 bg-red-50 font-bold';
       break;
     case 'c2_beacon':
     case ThreatType.C2_BEACON:
-      colorClass = 'border-threat-orange text-threat-orange bg-orange-950/30';
+      colorClass = 'border-orange-300 text-amber-900 bg-orange-50 font-bold';
       break;
     case 'dns_tunnel':
     case ThreatType.DNS_TUNNEL:
-      colorClass = 'border-purple-500 text-purple-400 bg-purple-950/30';
+      colorClass = 'border-purple-300 text-purple-900 bg-purple-50 font-bold';
       break;
     case 'encrypted_malware':
     case ThreatType.ENCRYPTED_MALWARE:
-      colorClass = 'border-threat-yellow text-threat-yellow bg-yellow-950/30';
+      colorClass = 'border-amber-300 text-amber-900 bg-amber-50 font-bold';
       break;
     case 'port_scan':
     case ThreatType.PORT_SCAN:
-      colorClass = 'border-blue-500 text-blue-400 bg-blue-950/30';
+      colorClass = 'border-blue-300 text-blue-900 bg-blue-50 font-bold';
       break;
     case 'exfiltration':
     case ThreatType.EXFILTRATION:
-      colorClass = 'border-pink-500 text-pink-400 bg-pink-950/30';
+      colorClass = 'border-pink-300 text-pink-900 bg-pink-50 font-bold';
       break;
     default:
-      colorClass = 'border-gray-500 text-gray-400 bg-gray-950/30';
+      colorClass = 'border-slate-300 text-slate-900 bg-slate-100 font-bold';
   }
 
   return (
-    <Badge variant="outline" className={colorClass}>
+    <Badge variant="outline" className={`font-mono text-[10px] px-2 py-0.5 rounded-full ${colorClass}`}>
       {label}
     </Badge>
   );

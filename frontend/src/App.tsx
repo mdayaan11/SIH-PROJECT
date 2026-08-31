@@ -9,6 +9,7 @@ import {
 import { connectWs } from './lib/websocket';
 import { api } from './lib/api';
 import { IntegrityLockdownModal } from './components/IntegrityLockdownModal';
+import { AiCopilot } from './components/AiCopilot';
 import OverviewPage from './pages/OverviewPage';
 import MonitoringPage from './pages/MonitoringPage';
 import AlertsPage from './pages/AlertsPage';
@@ -236,6 +237,7 @@ function App() {
         
         {/* Enclave Integrity Lockdown Alarm Modal */}
         <IntegrityLockdownModal />
+        <AiCopilot />
 
         {/* Soft Ambient Light Backdrop Mesh */}
         <div className="absolute top-[-10%] left-[20%] w-[600px] h-[600px] bg-cyan-200/40 rounded-full blur-[140px] pointer-events-none" />

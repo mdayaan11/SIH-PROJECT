@@ -7,11 +7,36 @@ function escHtml(s: string) {
   return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
+const CopilotIcon = ({ size = 26 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path 
+      d="M12 2C12 7.52285 7.52285 12 2 12C7.52285 12 12 16.4771 12 22C12 16.4771 16.4771 12 22 12C16.4771 12 12 7.52285 12 2Z" 
+      fill="url(#copilot-main-grad)"
+    />
+    <path 
+      d="M6 3.5C6 5.70914 4.20914 7.5 2 7.5C4.20914 7.5 6 9.29086 6 11.5C6 9.29086 7.79086 7.5 10 7.5C7.79086 7.5 6 5.70914 6 3.5Z" 
+      fill="url(#copilot-accent-grad)" 
+      opacity="0.9"
+    />
+    <defs>
+      <linearGradient id="copilot-main-grad" x1="2" y1="2" x2="22" y2="22" gradientUnits="userSpaceOnUse">
+        <stop offset="0%" stopColor="#38BDF8" />
+        <stop offset="50%" stopColor="#818CF8" />
+        <stop offset="100%" stopColor="#C084FC" />
+      </linearGradient>
+      <linearGradient id="copilot-accent-grad" x1="2" y1="3.5" x2="10" y2="11.5" gradientUnits="userSpaceOnUse">
+        <stop offset="0%" stopColor="#F472B6" />
+        <stop offset="100%" stopColor="#F59E0B" />
+      </linearGradient>
+    </defs>
+  </svg>
+);
+
 function getReply(q: string, alerts: any[], status: any): string {
   const lq = q.toLowerCase();
 
   if (['hi','hello','hey'].includes(lq) || lq.includes('who are you') || lq.includes('help')) {
-    return `👋 Hello Analyst! I'm <strong>ENCLIVRA AI Security Copilot</strong>.<br><br>I can help with:<br>• Analyzing IP addresses &amp; threat actors<br>• Explaining attack techniques (C2, DNS Tunneling, DDoS, etc.)<br>• Evidence chain integrity checks<br>• Firewall &amp; mitigation commands<br>• CISO executive briefings`;
+    return `✨ Hello Analyst! I'm <strong>ENCLIVRA AI Security Copilot</strong>.<br><br>I can help with:<br>• Analyzing IP addresses &amp; threat actors<br>• Explaining attack techniques (C2, DNS Tunneling, DDoS, etc.)<br>• Evidence chain integrity checks<br>• Firewall &amp; mitigation commands<br>• CISO executive briefings`;
   }
 
   if (lq.includes('enclivra') || lq.includes('what is') || lq.includes('platform')) {
@@ -86,7 +111,7 @@ export function AiCopilot() {
   const { alerts, status } = useStore();
   const [open, setOpen] = useState(false);
   const [msgs, setMsgs] = useState<Msg[]>([
-    { role: 'bot', text: '👋 Hello Analyst! I\'m <strong>ENCLIVRA AI Security Copilot</strong>. Ask me anything about threats, IPs, firewall rules, or the evidence ledger!' }
+    { role: 'bot', text: '✨ Hello Analyst! I\'m <strong>ENCLIVRA AI Security Copilot</strong>. Ask me anything about threats, IPs, firewall rules, or the evidence ledger!' }
   ]);
   const [input, setInput] = useState('');
   const [typing, setTyping] = useState(false);
@@ -113,24 +138,33 @@ export function AiCopilot() {
       <style>{`
         @keyframes aiDrawerIn { from { transform: translateY(16px); opacity: 0; } to { transform: none; opacity: 1; } }
         @keyframes aiDot { 0%,80%,100% { transform: scale(0); opacity:.3 } 40% { transform: scale(1); opacity:1 } }
-        @keyframes aiFabPulse { 0%,100% { box-shadow: 0 0 28px rgba(139,92,246,0.45); } 50% { box-shadow: 0 0 42px rgba(139,92,246,0.75); } }
+        @keyframes aiFabPulse { 0%,100% { box-shadow: 0 0 24px rgba(56,189,248,0.4); } 50% { box-shadow: 0 0 38px rgba(129,140,248,0.7); } }
       `}</style>
 
-      {/* FAB */}
-      <button onClick={() => setOpen(o => !o)} title="ENCLIVRA AI Copilot" style={{
-        position:'fixed', bottom:'1.75rem', right:'1.75rem', zIndex:9999,
-        width:56, height:56, borderRadius:'50%',
-        background:'linear-gradient(135deg,#f59e0b,#8b5cf6)',
-        border:'2px solid rgba(255,255,255,0.2)',
-        animation:'aiFabPulse 2.5s infinite',
-        cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center',
-        fontSize:'1.4rem', transition:'transform 0.2s',
-      }}
+      {/* Classic Copilot FAB Button */}
+      <button 
+        onClick={() => setOpen(o => !o)} 
+        title="ENCLIVRA AI Copilot" 
+        style={{
+          position:'fixed', bottom:'1.75rem', right:'1.75rem', zIndex:9999,
+          width:58, height:58, borderRadius:'50%',
+          background:'linear-gradient(135deg, #0f172a, #1e293b)',
+          border:'2px solid #38bdf8',
+          animation:'aiFabPulse 2.5s infinite',
+          cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center',
+          transition:'transform 0.2s',
+        }}
         onMouseEnter={e=>(e.currentTarget.style.transform='scale(1.1)')}
         onMouseLeave={e=>(e.currentTarget.style.transform='scale(1)')}
       >
-        🤖
-        <span style={{position:'absolute',top:-4,right:-4,background:'#ef4444',color:'#fff',fontSize:'0.6rem',fontWeight:900,padding:'1px 5px',borderRadius:9999,border:'2px solid #f1f5f9'}}>AI</span>
+        <CopilotIcon size={28} />
+        <span style={{
+          position:'absolute', top:-2, right:-2,
+          background:'linear-gradient(135deg,#38bdf8,#818cf8)',
+          color:'#0f172a', fontSize:'0.58rem', fontWeight:900,
+          padding:'1px 5px', borderRadius:9999,
+          border:'1.5 solid #0f172a', letterSpacing:'0.5px'
+        }}>COPILOT</span>
       </button>
 
       {/* Drawer */}
@@ -145,12 +179,12 @@ export function AiCopilot() {
         }}>
           {/* Header */}
           <div style={{padding:'0.85rem 1rem',background:'#1e293b',borderBottom:'1px solid #334155',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
-            <div style={{display:'flex',alignItems:'center',gap:'0.5rem'}}>
-              <span style={{width:8,height:8,borderRadius:'50%',background:'#f59e0b',boxShadow:'0 0 8px #f59e0b',display:'inline-block',animation:'aiDot 1.4s infinite'}} />
-              <span style={{fontWeight:800,fontSize:'0.875rem',color:'#f59e0b'}}>🤖 ENCLIVRA AI Copilot</span>
+            <div style={{display:'flex',alignItems:'center',gap:'0.6rem'}}>
+              <CopilotIcon size={20} />
+              <span style={{fontWeight:800,fontSize:'0.875rem',color:'#f8fafc',letterSpacing:'-0.2px'}}>ENCLIVRA Copilot</span>
             </div>
             <div style={{display:'flex',gap:'0.35rem'}}>
-              <button onClick={()=>setMsgs([{role:'bot',text:'🗑️ Chat cleared. Ask me anything!'}])} style={{background:'none',border:'none',color:'#94a3b8',cursor:'pointer',fontSize:'0.95rem',padding:'2px 6px',borderRadius:6}} title="Clear">🗑️</button>
+              <button onClick={()=>setMsgs([{role:'bot',text:'✨ Chat cleared. Ask me anything!'}])} style={{background:'none',border:'none',color:'#94a3b8',cursor:'pointer',fontSize:'0.95rem',padding:'2px 6px',borderRadius:6}} title="Clear">🗑️</button>
               <button onClick={()=>setOpen(false)} style={{background:'none',border:'none',color:'#94a3b8',cursor:'pointer',fontSize:'1.1rem',padding:'2px 6px',borderRadius:6}}>✕</button>
             </div>
           </div>
@@ -196,10 +230,10 @@ export function AiCopilot() {
               value={input}
               onChange={e=>setInput(e.target.value)}
               onKeyDown={e=>{if(e.key==='Enter')send();}}
-              placeholder="Ask about threats, IPs, firewall rules..."
+              placeholder="Ask Copilot about threats, IPs, firewall rules..."
               style={{flex:1,background:'#0f172a',border:'1px solid #334155',borderRadius:8,padding:'0.45rem 0.75rem',color:'#f8fafc',fontSize:'0.8rem',outline:'none'}}
             />
-            <button onClick={()=>send()} style={{background:'#38bdf8',color:'#000',border:'none',borderRadius:8,padding:'0.45rem 0.85rem',fontWeight:800,fontSize:'0.8rem',cursor:'pointer'}}>Send</button>
+            <button onClick={()=>send()} style={{background:'linear-gradient(135deg,#38bdf8,#818cf8)',color:'#0f172a',border:'none',borderRadius:8,padding:'0.45rem 0.85rem',fontWeight:800,fontSize:'0.8rem',cursor:'pointer'}}>Send</button>
           </div>
         </div>
       )}

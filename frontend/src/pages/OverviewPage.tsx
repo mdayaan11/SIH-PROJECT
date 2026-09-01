@@ -9,6 +9,7 @@ import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'rec
 import { Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
+import { IpIngressStreamCard } from '../components/IpIngressStreamCard';
 
 export default function OverviewPage() {
   const { alerts, setAlerts, status, setStatus } = useStore();
@@ -77,6 +78,9 @@ export default function OverviewPage() {
 
       {/* Cryptographic Visual Pipeline Flow */}
       <PipelineVisualizer />
+
+      {/* Live Animated IP Ingress Motion Stream */}
+      <IpIngressStreamCard />
 
       {/* Bottom Row Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

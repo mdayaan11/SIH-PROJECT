@@ -2,14 +2,39 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useStore } from '../store/useStore';
 import { Card, CardContent } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
-import { Activity, Pause, Play, Filter, Shield, Sparkles } from 'lucide-react';
+import { Activity, Pause, Play } from 'lucide-react';
 import { Button } from '../components/ui/button';
+import { IpIngressStreamCard } from '../components/IpIngressStreamCard';
 
 export default function MonitoringPage() {
-  const { liveEvents } = useStore();
+  const { liveEvents, addLiveEvent } = useStore();
   const [autoScroll, setAutoScroll] = useState(true);
   const [filterProto, setFilterProto] = useState<string>('');
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Auto populate sample telemetry events if empty
+  useEffect(() => {
+    if (liveEvents.length === 0) {
+      const sampleIps = ['192.168.1.50', '45.33.32.156', '192.168.1.75', '10.0.0.200', '185.220.101.1', '192.168.1.90'];
+      const sampleProtos = ['TCP', 'UDP', 'DNS', 'HTTPS', 'TLS'];
+      
+      sampleIps.forEach((ip, i) => {
+        addLiveEvent({
+          uid: `INIT-${i+1}`,
+          proto: sampleProtos[i % sampleProtos.length],
+          protocol: sampleProtos[i % sampleProtos.length],
+          src_ip: ip,
+          dst_ip: '10.0.0.1',
+          dst_port: 443,
+          orig_bytes: 1024 + i * 256,
+          resp_bytes: 4096 + i * 512,
+          ts: (Date.now() / 1000) - (i * 5),
+          severity: i % 2 === 0 ? 'critical' : 'high',
+          threat_type: 'C2 Beaconing'
+        });
+      });
+    }
+  }, []);
 
   useEffect(() => {
     if (autoScroll && scrollRef.current) {
@@ -20,7 +45,7 @@ export default function MonitoringPage() {
   const filteredEvents = liveEvents.filter(e => filterProto ? e.proto?.toUpperCase() === filterProto || e.protocol === filterProto : true);
 
   return (
-    <div className="space-y-6 h-full flex flex-col max-w-7xl mx-auto pb-8">
+    <div className="space-y-6 h-full flex flex-col max-w-7xl mx-auto pb-8 font-sans">
       
       {/* Page Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-6 rounded-3xl bg-white/70 backdrop-blur-2xl border border-slate-200/80 shadow-xl">
@@ -47,7 +72,7 @@ export default function MonitoringPage() {
             <option value="TCP">TCP</option>
             <option value="UDP">UDP</option>
             <option value="DNS">DNS</option>
-            <option value="SSL">SSL / HTTPS</option>
+            <option value="HTTPS">HTTPS</option>
           </select>
 
           <Button 
@@ -62,7 +87,10 @@ export default function MonitoringPage() {
         </div>
       </div>
 
-      {/* Stream Card */}
+      {/* 1. Animated IP Ingress Motion Stream Card */}
+      <IpIngressStreamCard />
+
+      {/* 2. Detailed Packet Log Stream Card */}
       <Card className="flex-1 glass-light-card border border-slate-200/80 rounded-3xl shadow-xl overflow-hidden flex flex-col">
         <div className="p-4 border-b border-slate-200/80 bg-slate-50/70 flex items-center justify-between text-xs font-mono font-bold text-slate-600">
           <span>TIMESTAMP / UID</span>
@@ -85,7 +113,7 @@ export default function MonitoringPage() {
                 const ts = event.ts ? new Date(event.ts * 1000).toLocaleTimeString() : new Date().toLocaleTimeString();
 
                 return (
-                  <div key={event.uid || idx} className="flex items-center justify-between p-3 rounded-2xl bg-white/80 border border-slate-200/80 shadow-xs hover:border-cyan-500/40 hover:bg-white transition-all">
+                  <div key={event.uid || idx} className="flex items-center justify-between p-3 rounded-2xl bg-white/80 border border-slate-200/80 shadow-xs hover:border-cyan-500/40 hover:bg-white transition-all animate-fadeIn">
                     <div className="w-32 flex-shrink-0 space-y-0.5">
                       <div className="text-slate-800 font-bold">{ts}</div>
                       <div className="text-[10px] text-slate-400">UID: {event.uid || `C${idx}`}</div>
@@ -98,7 +126,7 @@ export default function MonitoringPage() {
                     </div>
 
                     <div className="flex-1 text-slate-800 font-bold font-mono">
-                      {src} <span className="text-slate-400">&rarr;</span> {dst}:{dstPort}
+                      <span className="text-cyan-800 font-black">{src}</span> <span className="text-slate-400">&rarr;</span> {dst}:{dstPort}
                     </div>
 
                     <div className="w-24 text-right text-slate-600 font-medium">

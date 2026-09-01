@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useStore } from '../store/useStore';
+import { ThreatAlert } from '../types';
 
 type Msg = { role: 'user' | 'bot'; text: string };
 
@@ -32,11 +33,94 @@ const CopilotIcon = ({ size = 26 }: { size?: number }) => (
   </svg>
 );
 
-function getReply(q: string, alerts: any[], status: any): string {
+export const DEMO_ATTACKS_DATA = [
+  {
+    title: 'Cobalt Strike C2 Beaconing Detected',
+    type: 'c2_beacon',
+    severity: 'critical',
+    confidence: 0.96,
+    src: '192.168.1.50',
+    dst: '45.33.32.156',
+    port: 443,
+    proto: 'HTTPS/SSL',
+    desc: 'Periodic SSL beaconing to 45.33.32.156 matching Cobalt Strike default profile (30s interval, 15% jitter).'
+  },
+  {
+    title: 'High-Entropy DNS Exfiltration Tunnel',
+    type: 'dns_tunnel',
+    severity: 'critical',
+    confidence: 0.99,
+    src: '192.168.1.75',
+    dst: '203.0.113.50',
+    port: 53,
+    proto: 'DNS TXT',
+    desc: 'High subdomain entropy (H=4.82) on data.evil.com with 184-byte TXT record payloads.'
+  },
+  {
+    title: 'Volumetric SYN Flood DDoS Attempt',
+    type: 'ddos',
+    severity: 'high',
+    confidence: 0.92,
+    src: '192.168.2.45',
+    dst: '10.0.0.100',
+    port: 80,
+    proto: 'TCP SYN',
+    desc: 'Inbound 1,000 pps SYN flood targeting gateway 10.0.0.100:80.'
+  },
+  {
+    title: 'JA3 Encrypted Malware Session',
+    type: 'encrypted_malware',
+    severity: 'critical',
+    confidence: 0.95,
+    src: '185.220.101.1',
+    dst: '192.168.1.80',
+    port: 443,
+    proto: 'TLS 1.3',
+    desc: 'Self-signed X.509 cert matching known malware JA3 hash e7d705a3286e.'
+  },
+  {
+    title: 'TCP Port Scan Sweep Detected',
+    type: 'port_scan',
+    severity: 'high',
+    confidence: 0.89,
+    src: '10.0.0.200',
+    dst: '10.0.0.1',
+    port: 80,
+    proto: 'TCP SYN',
+    desc: 'Sequential SYN sweep across 100 ports from 10.0.0.200 with 90% connection failure rate.'
+  },
+  {
+    title: 'Unauthorized Data Exfiltration Drop',
+    type: 'exfiltration',
+    severity: 'critical',
+    confidence: 0.97,
+    src: '192.168.1.90',
+    dst: '198.51.100.88',
+    port: 443,
+    proto: 'TCP/HTTP',
+    desc: '50MB unencrypted file transfer drop to external IP 198.51.100.88.'
+  }
+];
+
+function getReply(q: string, alerts: any[], status: any, triggerAttacks?: () => void): string {
   const lq = q.toLowerCase();
 
+  // 6 Demo Attacks Request
+  if (lq.includes('demo attack') || lq.includes('run 6') || lq.includes('6 demo') || lq.includes('simulate attack')) {
+    if (triggerAttacks) triggerAttacks();
+    return `🚨 <strong>6 DEMO ATTACK VECTOR SIMULATION EXECUTED!</strong><br><br>` +
+      `Simulated 6 multi-vector threat payloads into the live SOC detector pipeline:<br><br>` +
+      `1. 🔴 <strong>C2 Beaconing:</strong> 192.168.1.50 ➔ 45.33.32.156 (Cobalt Strike JA3 profile)<br>` +
+      `2. 🔴 <strong>DNS Exfiltration:</strong> 192.168.1.75 ➔ 203.0.113.50 (H=4.82 Entropy)<br>` +
+      `3. 🟠 <strong>SYN Flood DDoS:</strong> 192.168.2.45 ➔ 10.0.0.100 (1,000 pps)<br>` +
+      `4. 🔴 <strong>JA3 TLS Malware:</strong> 185.220.101.1 ➔ 192.168.1.80 (Self-signed cert)<br>` +
+      `5. 🟠 <strong>TCP Port Sweep:</strong> 10.0.0.200 ➔ 10.0.0.1 (100 sequential ports)<br>` +
+      `6. 🔴 <strong>Data Drop Exfil:</strong> 192.168.1.90 ➔ 198.51.100.88 (Unencrypted payload)<br><br>` +
+      `✅ <em>All 6 attack signatures dispatched into Live Monitoring, Threat Alerts, &amp; Evidence Ledger!</em>`;
+  }
+
   if (['hi','hello','hey'].includes(lq) || lq.includes('who are you') || lq.includes('help')) {
-    return `✨ Hello Analyst! I'm <strong>ENCLIVRA AI Security Copilot</strong>.<br><br>I can help with:<br>• Analyzing IP addresses &amp; threat actors<br>• Explaining attack techniques (C2, DNS Tunneling, DDoS, etc.)<br>• Evidence chain integrity checks<br>• Firewall &amp; mitigation commands<br>• CISO executive briefings`;
+    return `✨ Hello Analyst! I'm <strong>ENCLIVRA AI Security Copilot</strong>.<br><br>I can help with:<br>• ⚡ <strong>Running 6 demo attack simulations</strong><br>• Analyzing IP addresses &amp; threat actors<br>• Explaining attack techniques (C2, DNS Tunneling, DDoS, etc.)<br>• Evidence chain integrity checks<br>• Firewall &amp; mitigation commands<br>• CISO executive briefings`;
   }
 
   if (lq.includes('enclivra') || lq.includes('what is') || lq.includes('platform')) {
@@ -95,23 +179,24 @@ function getReply(q: string, alerts: any[], status: any): string {
   }
 
   const total = status?.alerts_total || alerts.length;
-  return `📊 <strong>ENCLIVRA Telemetry:</strong><br><br>• <strong>Active Alerts:</strong> ${total}<br>• <strong>Evidence Ledger:</strong> ${status?.chain_intact !== false ? '✅ INTACT' : '❌ COMPROMISED'}<br>• <strong>Detectors Online:</strong> ${status?.active_detectors || 7}/7<br><br>Try: <em>"Analyze IP 192.168.1.50"</em>, <em>"How to block threat IP?"</em>, or <em>"CISO summary"</em>`;
+  return `📊 <strong>ENCLIVRA Telemetry:</strong><br><br>• <strong>Active Alerts:</strong> ${total}<br>• <strong>Evidence Ledger:</strong> ${status?.chain_intact !== false ? '✅ INTACT' : '❌ COMPROMISED'}<br>• <strong>Detectors Online:</strong> ${status?.active_detectors || 7}/7<br><br>Try: <em>"⚡ Run 6 Demo Attacks"</em>, <em>"Analyze IP 192.168.1.50"</em>, or <em>"CISO summary"</em>`;
 }
 
 const CHIPS = [
-  { label: '🔍 192.168.1.50',   q: 'Analyze IP 192.168.1.50' },
-  { label: '🛡️ Evidence Chain', q: 'What is the evidence chain status?' },
-  { label: '📡 C2 Beaconing',   q: 'Explain C2 beaconing' },
-  { label: '⚡ Block IP Rules',  q: 'How to block a threat IP?' },
-  { label: '📋 CISO Summary',   q: 'CISO executive summary' },
+  { label: '⚡ Run 6 Demo Attacks', q: 'Run 6 demo attacks' },
+  { label: '🔍 192.168.1.50',     q: 'Analyze IP 192.168.1.50' },
+  { label: '🛡️ Evidence Chain',   q: 'What is the evidence chain status?' },
+  { label: '📡 C2 Beaconing',     q: 'Explain C2 beaconing' },
+  { label: '⚡ Block IP Rules',    q: 'How to block a threat IP?' },
+  { label: '📋 CISO Summary',     q: 'CISO executive summary' },
   { label: '❓ What is ENCLIVRA?', q: 'What is ENCLIVRA?' },
 ];
 
 export function AiCopilot() {
-  const { alerts, status } = useStore();
+  const { alerts, status, addAlert, addLiveEvent } = useStore();
   const [open, setOpen] = useState(false);
   const [msgs, setMsgs] = useState<Msg[]>([
-    { role: 'bot', text: '✨ Hello Analyst! I\'m <strong>ENCLIVRA AI Security Copilot</strong>. Ask me anything about threats, IPs, firewall rules, or the evidence ledger!' }
+    { role: 'bot', text: '✨ Hello Analyst! I\'m <strong>ENCLIVRA AI Security Copilot</strong>. Ask me anything or tap <strong>⚡ Run 6 Demo Attacks</strong> to test live threat detectors!' }
   ]);
   const [input, setInput] = useState('');
   const [typing, setTyping] = useState(false);
@@ -121,6 +206,39 @@ export function AiCopilot() {
     if (listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight;
   }, [msgs, typing]);
 
+  const trigger6DemoAttacks = () => {
+    DEMO_ATTACKS_DATA.forEach((atk, idx) => {
+      const alertItem: ThreatAlert = {
+        alert_id: `DEMO-${idx + 1}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`,
+        title: atk.title,
+        threat_type: atk.type,
+        detector_id: `det_demo_${idx + 1}`,
+        severity: atk.severity as any,
+        confidence: atk.confidence,
+        timestamp: Date.now() / 1000 - (idx * 30),
+        description: atk.desc,
+        source_ips: [atk.src],
+        dest_ips: [atk.dst],
+        dest_ports: [atk.port]
+      };
+      addAlert(alertItem);
+
+      addLiveEvent({
+        uid: `ATK-${idx + 1}`,
+        proto: atk.proto,
+        protocol: atk.proto,
+        src_ip: atk.src,
+        dst_ip: atk.dst,
+        dst_port: atk.port,
+        orig_bytes: 2048 * (idx + 1),
+        resp_bytes: 8192 * (idx + 1),
+        ts: Date.now() / 1000 - (idx * 5),
+        severity: atk.severity,
+        threat_type: atk.type
+      });
+    });
+  };
+
   const send = (text?: string) => {
     const val = (text ?? input).trim();
     if (!val) return;
@@ -129,7 +247,7 @@ export function AiCopilot() {
     setTyping(true);
     setTimeout(() => {
       setTyping(false);
-      setMsgs(p => [...p, { role: 'bot', text: getReply(val, alerts, status) }]);
+      setMsgs(p => [...p, { role: 'bot', text: getReply(val, alerts, status, trigger6DemoAttacks) }]);
     }, 480);
   };
 
@@ -163,7 +281,7 @@ export function AiCopilot() {
           background:'linear-gradient(135deg,#38bdf8,#818cf8)',
           color:'#0f172a', fontSize:'0.58rem', fontWeight:900,
           padding:'1px 5px', borderRadius:9999,
-          border:'1.5 solid #0f172a', letterSpacing:'0.5px'
+          border:'1.5px solid #0f172a', letterSpacing:'0.5px'
         }}>COPILOT</span>
       </button>
 
@@ -215,11 +333,15 @@ export function AiCopilot() {
             {CHIPS.map(c=>(
               <button key={c.q} onClick={()=>send(c.q)} style={{
                 flexShrink:0, padding:'0.25rem 0.55rem',
-                borderRadius:9999, background:'#1e293b', border:'1px solid #334155',
-                color:'#94a3b8', fontSize:'0.7rem', cursor:'pointer', whiteSpace:'nowrap', transition:'all 0.15s',
+                borderRadius:9999, 
+                background: c.q.includes('demo') ? 'linear-gradient(135deg, rgba(239,68,68,0.2), rgba(245,158,11,0.2))' : '#1e293b', 
+                border: c.q.includes('demo') ? '1px solid #f59e0b' : '1px solid #334155',
+                color: c.q.includes('demo') ? '#fbbf24' : '#94a3b8', 
+                fontSize:'0.7rem', fontWeight: c.q.includes('demo') ? 800 : 400,
+                cursor:'pointer', whiteSpace:'nowrap', transition:'all 0.15s',
               }}
                 onMouseEnter={e=>{e.currentTarget.style.color='#38bdf8';e.currentTarget.style.borderColor='#38bdf8';}}
-                onMouseLeave={e=>{e.currentTarget.style.color='#94a3b8';e.currentTarget.style.borderColor='#334155';}}
+                onMouseLeave={e=>{e.currentTarget.style.color=c.q.includes('demo')?'#fbbf24':'#94a3b8';e.currentTarget.style.borderColor=c.q.includes('demo')?'#f59e0b':'#334155';}}
               >{c.label}</button>
             ))}
           </div>

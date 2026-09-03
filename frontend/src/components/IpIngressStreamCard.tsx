@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Card, CardContent, CardTitle, CardDescription } from './ui/card';
-import { Pause, Play, Zap, Trash2, Radio } from 'lucide-react';
+import { Pause, Play, Zap, Trash2 } from 'lucide-react';
 import { useStore } from '../store/useStore';
 
 export const IP_POOL = [
@@ -29,6 +29,7 @@ export type IpEntry = {
 
 export function IpIngressStreamCard() {
   const addLiveEvent = useStore(state => state.addLiveEvent);
+  const demoAttackSignal = useStore(state => state.demoAttackSignal);
   const [ipFeed, setIpFeed] = useState<IpEntry[]>([]);
   const [pillFeed, setPillFeed] = useState<IpEntry[]>([]);
   const [streamRunning, setStreamRunning] = useState(true);
@@ -39,16 +40,24 @@ export function IpIngressStreamCard() {
   const keyRef = useRef(0);
   const streamRunningRef = useRef(true);
 
-  const pushPacket = (override?: (typeof IP_POOL)[number]) => {
-    const pkt = override ?? IP_POOL[poolIdx.current % IP_POOL.length];
+  const pushPacket = (override?: Partial<IpEntry>) => {
+    const defaultPkt = IP_POOL[poolIdx.current % IP_POOL.length];
     poolIdx.current++;
     const tsStr = new Date().toLocaleTimeString();
-    const entry: IpEntry = { ...pkt, key: keyRef.current++, ts: tsStr };
+    const entry: IpEntry = {
+      key: keyRef.current++,
+      ip: override?.ip || defaultPkt.ip,
+      proto: override?.proto || defaultPkt.proto,
+      port: override?.port || defaultPkt.port,
+      sev: override?.sev || defaultPkt.sev,
+      type: override?.type || defaultPkt.type,
+      geo: override?.geo || defaultPkt.geo,
+      ts: tsStr
+    };
 
     setPillFeed(prev => [entry, ...prev].slice(0, 8));
     setIpFeed(prev => [entry, ...prev].slice(0, 12));
 
-    // Sync into global store for Live Monitoring page
     addLiveEvent({
       uid: `PKT-${entry.key}`,
       proto: entry.proto.split('/')[0],
@@ -71,6 +80,26 @@ export function IpIngressStreamCard() {
     }, speedMs.current);
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, []);
+
+  // React instantly to 6 Demo Attacks trigger signal from Copilot
+  useEffect(() => {
+    if (demoAttackSignal > 0) {
+      const freshAttacks = [
+        { ip: '185.220.101.99', proto: 'TCP/SSL', port: 443, sev: 'critical', type: 'C2 Beaconing', geo: 'US-East C2' },
+        { ip: '192.168.1.105', proto: 'DNS',     port: 53,  sev: 'critical', type: 'DNS Exfil',     geo: 'Internal Host' },
+        { ip: '192.168.2.88',  proto: 'UDP SYN', port: 80,  sev: 'high',     type: 'SYN Flood',    geo: 'Internal Gateway' },
+        { ip: '203.0.113.199', proto: 'TLS 1.3', port: 443, sev: 'critical', type: 'JA3 Malware',   geo: 'RU-Moscow Node' },
+        { ip: '10.0.0.155',    proto: 'TCP SYN', port: 22,  sev: 'high',     type: 'Port Sweep',    geo: 'DMZ Subnet' },
+        { ip: '198.51.100.44', proto: 'HTTP',    port: 8080,sev: 'critical', type: 'Data Drop',     geo: 'External Drop' },
+      ];
+
+      freshAttacks.forEach((atk, index) => {
+        setTimeout(() => {
+          pushPacket(atk);
+        }, index * 120);
+      });
+    }
+  }, [demoAttackSignal]);
 
   const toggleStream = () => {
     const next = !streamRunningRef.current;
@@ -139,7 +168,7 @@ export function IpIngressStreamCard() {
           <button onClick={() => { setIpFeed([]); setPillFeed([]); }} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-black bg-white border border-slate-300 text-slate-700 rounded-xl hover:bg-red-50 hover:border-red-300 hover:text-red-800 transition-all">
             <Trash2 className="w-3.5 h-3.5" /> Clear
           </button>
-          <button onClick={() => pushPacket(IP_POOL[0])} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-black bg-red-100 border border-red-400 text-red-900 rounded-xl hover:bg-red-200 transition-all">
+          <button onClick={() => useStore.getState().trigger6DemoAttacksSignal()} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-black bg-red-100 border border-red-400 text-red-900 rounded-xl hover:bg-red-200 transition-all">
             <Zap className="w-3.5 h-3.5" /> Test Threat
           </button>
         </div>

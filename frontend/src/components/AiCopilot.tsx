@@ -207,6 +207,8 @@ export function AiCopilot() {
   }, [msgs, typing]);
 
   const trigger6DemoAttacks = () => {
+    useStore.getState().trigger6DemoAttacksSignal();
+
     DEMO_ATTACKS_DATA.forEach((atk, idx) => {
       const alertItem: ThreatAlert = {
         alert_id: `DEMO-${idx + 1}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`,
@@ -224,7 +226,7 @@ export function AiCopilot() {
       addAlert(alertItem);
 
       addLiveEvent({
-        uid: `ATK-${idx + 1}`,
+        uid: `ATK-${idx + 1}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`,
         proto: atk.proto,
         protocol: atk.proto,
         src_ip: atk.src,

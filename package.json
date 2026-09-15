@@ -2,7 +2,11 @@
   "name": "enclivra-project",
   "version": "1.0.0",
   "private": true,
+  "workspaces": [
+    "frontend"
+  ],
   "scripts": {
-    "build": "npm run build --prefix frontend"
+    "postinstall": "cd frontend && npm install",
+    "build": "cd frontend && npm run build"
   }
 }

@@ -56,6 +56,9 @@ from extras.story_stitcher import StoryStitcher
 from extras.baseline import BaselineManager
 from extras.storm_collapse import StormCollapser
 from extras.feedback import FeedbackManager
+from extras.mitre import enrich_alert_with_mitre
+from extras.enrichment import enrich_alert
+from extras.alerting import dispatch_alert
 
 # ---------------------------------------------------------------------------
 # Logging
@@ -306,20 +309,27 @@ async def _process_alerts():
                 except Exception:
                     pass
 
-            # 5. Cache
+            # 5. Enrich alert dict with MITRE + GeoIP
+            alert_dict = json.loads(alert.model_dump_json())
+            alert_dict = enrich_alert_with_mitre(alert_dict)
+            try:
+                alert_dict = await enrich_alert(alert_dict)
+            except Exception as enrich_err:
+                logger.debug(f"Enrichment partial failure: {enrich_err}")
+
+            # 6. Cache
             state.recent_alerts.insert(0, alert)
             if len(state.recent_alerts) > state.max_recent:
                 state.recent_alerts.pop()
 
-            # 6. Broadcast to WebSocket clients
-            await _broadcast({
-                "type": "alert",
-                "data": json.loads(alert.model_dump_json()),
-            })
+            # 7. Broadcast + multi-channel dispatch
+            await _broadcast({"type": "alert", "data": alert_dict})
+            await dispatch_alert(alert_dict, ws_clients=state.ws_clients)
 
             logger.info(
                 f"🚨 [{alert.threat_type.value.upper()}] "
-                f"{alert.title} (confidence: {alert.confidence:.2f})"
+                f"{alert.title} (confidence: {alert.confidence:.2f}) "
+                f"[{alert_dict.get('mitre', {}).get('tactic', '')}]"
             )
 
         except Exception as e:
@@ -700,9 +710,22 @@ async def get_chain_entries(limit: int = Query(50, ge=1, le=500)):
 # ---------------------------------------------------------------------------
 # REST API — Attack Generator
 # ---------------------------------------------------------------------------
+@app.post("/api/generate/all")
+async def generate_all_attacks():
+    """Inject all 6 attack types simultaneously into the pipeline."""
+    if not state.attack_generator:
+        raise HTTPException(status_code=503, detail="Generator not ready")
+    asyncio.create_task(state.attack_generator.generate_all())
+    return {
+        "status": "generating",
+        "attack_types": ["c2_beacon", "dns_tunnel", "ddos", "port_scan", "exfiltration", "encrypted_malware"],
+        "message": "All 6 attack scenarios injected. Alerts will appear within ~10 seconds.",
+    }
+
+
 @app.post("/api/generate/{attack_type}")
 async def generate_attack(attack_type: str):
-    """Generate synthetic attack traffic for testing."""
+    """Generate synthetic attack traffic for a specific attack type."""
     if not state.attack_generator:
         raise HTTPException(status_code=503, detail="Generator not ready")
 
@@ -713,21 +736,18 @@ async def generate_attack(attack_type: str):
         "encrypted_malware": state.attack_generator.generate_encrypted_malware,
         "port_scan": state.attack_generator.generate_port_scan,
         "exfiltration": state.attack_generator.generate_exfiltration,
-        "normal": state.attack_generator.generate_normal_traffic,
-        "all": state.attack_generator.run_all_attacks,
     }
 
     gen_func = generators.get(attack_type)
     if not gen_func:
         raise HTTPException(
             status_code=400,
-            detail=f"Unknown attack type. Valid: {list(generators.keys())}",
+            detail=f"Unknown attack type. Valid: {list(generators.keys()) + ['all']}",
         )
 
-    # Run generation in background
     asyncio.create_task(gen_func())
+    return {"status": "generating", "attack_type": attack_type, "message": f"Injecting {attack_type} traffic into pipeline"}
 
-    return {"status": "generating", "type": attack_type}
 
 
 # ---------------------------------------------------------------------------
@@ -771,7 +791,7 @@ async def run_retrohunt(body: dict):
 # ---------------------------------------------------------------------------
 @app.post("/api/feedback")
 async def submit_feedback(body: dict):
-    """Submit analyst feedback on an alert."""
+    """Submit analyst feedback on an alert. Automatically queues ML retraining."""
     alert_id = body.get("alert_id", "")
     verdict = body.get("verdict", "")
     notes = body.get("notes", "")
@@ -782,17 +802,40 @@ async def submit_feedback(body: dict):
             detail="verdict must be 'true_positive' or 'false_positive'",
         )
 
-    # Store feedback in DB directly
+    # Store feedback in DB
     if state.db:
         await state.db.store_feedback(alert_id, verdict, notes)
 
-    # Update in-memory alert
+    # Update in-memory alert + buffer ML feedback
     for a in state.recent_alerts:
         if a.alert_id == alert_id:
             a.analyst_verdict = verdict
+            # Add to ML feedback buffer if false positive
+            if verdict == "false_positive":
+                for det in state.detector_instances:
+                    if hasattr(det, "add_feedback") and hasattr(det, "feedback_buffer"):
+                        # Label as 'normal' since it was FP
+                        import numpy as np
+                        dummy_features = det.extract_features(type('E', (), {
+                            'src_ip': a.source_ips[0] if a.source_ips else '',
+                            'src_port': 0, 'dst_ip': a.dest_ips[0] if a.dest_ips else '',
+                            'dst_port': a.dest_ports[0] if a.dest_ports else 80,
+                            'proto': 'tcp', 'orig_bytes': 512, 'resp_bytes': 2048,
+                            'duration': 1.0, 'orig_pkts': 5, 'resp_pkts': 5,
+                            'conn_state': 'SF', 'ts': time.time(), 'query': None,
+                        })()) if hasattr(det, 'extract_features') else None
+                        if dummy_features is not None:
+                            det.add_feedback(dummy_features, "normal")
             break
 
     return {"status": "recorded", "alert_id": alert_id, "verdict": verdict}
+
+
+@app.post("/api/feedback/{alert_id}")
+async def submit_feedback_by_id(alert_id: str, body: dict):
+    """Submit analyst feedback on an alert by path param."""
+    body["alert_id"] = alert_id
+    return await submit_feedback(body)
 
 
 @app.get("/api/feedback/stats")
@@ -801,6 +844,53 @@ async def feedback_stats():
     if state.feedback_manager:
         return await state.feedback_manager.get_feedback_stats()
     return {}
+
+
+# ---------------------------------------------------------------------------
+# REST API — ML Model Status & Retraining
+# ---------------------------------------------------------------------------
+@app.get("/api/ml/status")
+async def ml_status():
+    """Get ML model status, accuracy, and feature importances."""
+    for det in state.detector_instances:
+        if hasattr(det, "get_status") and hasattr(det, "is_trained"):
+            return det.get_status()
+    return {"error": "ML detector not found", "sklearn_available": False}
+
+
+@app.post("/api/ml/retrain")
+async def ml_retrain():
+    """Trigger ML model retraining using analyst feedback buffer."""
+    for det in state.detector_instances:
+        if hasattr(det, "retrain_with_feedback"):
+            result = det.retrain_with_feedback()
+            return result
+    return {"status": "no_ml_detector"}
+
+
+@app.get("/api/ioc")
+async def list_iocs(limit: int = Query(50, ge=1, le=500)):
+    """List stored IOCs."""
+    if state.db:
+        try:
+            return await state.db.get_iocs(limit=limit)
+        except Exception:
+            pass
+    return []
+
+
+@app.post("/api/ioc")
+async def add_ioc(body: dict):
+    """Add a new IOC for retro-hunting."""
+    ioc_type = body.get("type", "ip")
+    value = body.get("value", "")
+    description = body.get("description", "")
+    if not value:
+        raise HTTPException(status_code=400, detail="Missing 'value'")
+    ioc = IOCEntry(ioc_type=IOCType(ioc_type), value=value, description=description)
+    if state.db:
+        await state.db.store_ioc(ioc)
+    return {"status": "stored", "ioc": json.loads(ioc.model_dump_json())}
 
 
 # ---------------------------------------------------------------------------

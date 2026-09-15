@@ -7,12 +7,12 @@ export function PipelineVisualizer() {
   const { status } = useStore();
   
   const stages = [
-    { id: 'input', label: 'ONE-WAY INPUT', icon: ArrowRight, count: (status?.events_processed || 148520).toLocaleString() },
-    { id: 'metadata', label: 'METADATA', icon: Database, count: (status?.events_processed || 148520).toLocaleString() },
-    { id: 'processing', label: 'PROCESSING', icon: Cpu, count: (status?.active_detectors || 6).toString() },
-    { id: 'detection', label: 'DETECTION', icon: Activity, count: (status?.active_detectors || 6).toString() },
-    { id: 'alert', label: 'ALERT', icon: Shield, count: (status?.alerts_total || 6).toString() },
-    { id: 'verified', label: 'VERIFIED', icon: CheckCircle2, count: (status?.chain_length || 6).toString() },
+    { id: 'input', label: 'ONE-WAY INPUT', icon: ArrowRight, count: (status?.events_processed ?? 0).toLocaleString() },
+    { id: 'metadata', label: 'METADATA', icon: Database, count: (status?.events_processed ?? 0).toLocaleString() },
+    { id: 'processing', label: 'PROCESSING', icon: Cpu, count: (status?.active_detectors ?? 0).toString() },
+    { id: 'detection', label: 'DETECTION', icon: Activity, count: (status?.active_detectors ?? 0).toString() },
+    { id: 'alert', label: 'ALERT', icon: Shield, count: (status?.alerts_total ?? 0).toString() },
+    { id: 'verified', label: 'VERIFIED', icon: CheckCircle2, count: (status?.chain_length ?? 0).toString() },
   ];
 
   return (

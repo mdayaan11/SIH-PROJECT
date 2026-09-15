@@ -39,7 +39,7 @@ export default function HealthPage() {
             </div>
             <div className="flex justify-between items-center border-b border-slate-200 pb-2">
               <span className="text-slate-800 font-bold font-sans">Total Events Processed</span>
-              <span className="font-mono font-black text-slate-950">{(status?.events_processed || 148520).toLocaleString()}</span>
+              <span className="font-mono font-black text-slate-950">{(status?.events_processed ?? 0).toLocaleString()}</span>
             </div>
             <div className="flex justify-between items-center border-b border-slate-200 pb-2">
               <span className="text-slate-800 font-bold font-sans">Events Per Second (EPS)</span>

@@ -1,30 +1,23 @@
 import { create } from 'zustand';
 import { ThreatAlert, SystemStatus } from '../types';
-import { DEMO_ALERTS } from '../lib/api';
 
-const INITIAL_STATUS: SystemStatus = {
-  events_processed: 148520,
-  events_per_second: 345,
-  alerts_total: 14,
-  alerts_last_hour: 4,
-  chain_length: 1485,
-  chain_intact: true,
-  uptime_seconds: 172800, // 48 hours
-  active_detectors: 7
-};
+// ---------------------------------------------------------------------------
+// ZERO hardcoded demo data — all values come from the live Render backend
+// ---------------------------------------------------------------------------
 
 interface AppState {
   alerts: ThreatAlert[];
-  status: SystemStatus;
+  status: SystemStatus | null;
   wsConnected: boolean;
   liveEvents: any[];
   selectedPage: string;
   tamperAlertActive: boolean;
   tamperDetails: string | null;
   demoAttackSignal: number;
+
   setAlerts: (alerts: ThreatAlert[]) => void;
   addAlert: (alert: ThreatAlert) => void;
-  setStatus: (status: Partial<SystemStatus>) => void;
+  setStatus: (status: SystemStatus | null) => void;
   setWsConnected: (connected: boolean) => void;
   addLiveEvent: (event: any) => void;
   setSelectedPage: (page: string) => void;
@@ -34,109 +27,93 @@ interface AppState {
 }
 
 export const useStore = create<AppState>((set, get) => ({
-  alerts: DEMO_ALERTS,
-  status: INITIAL_STATUS,
-  wsConnected: true,
+  // Start with empty state — backend fills these in
+  alerts: [],
+  status: null,
+  wsConnected: false,
   liveEvents: [],
   selectedPage: 'overview',
   tamperAlertActive: false,
   tamperDetails: null,
   demoAttackSignal: 0,
 
-  setAlerts: (alerts) => set((state) => ({
-    alerts: (alerts && alerts.length > 0) ? alerts : (state.alerts.length > 0 ? state.alerts : DEMO_ALERTS)
-  })),
+  setAlerts: (alerts) => set({ alerts: alerts ?? [] }),
 
   addAlert: (alert) => set((state) => {
     const nextAlerts = [alert, ...state.alerts].slice(0, 1000);
     return {
       alerts: nextAlerts,
-      status: {
+      status: state.status ? {
         ...state.status,
         alerts_total: nextAlerts.length,
-        alerts_last_hour: (state.status.alerts_last_hour || 4) + 1
-      }
+        alerts_last_hour: (state.status.alerts_last_hour ?? 0) + 1,
+      } : null,
     };
   }),
 
   setStatus: (newStatus) => set((state) => {
     if (!newStatus) return state;
-    const currentProcessed = state.status.events_processed || 148520;
-    const incomingProcessed = newStatus.events_processed || 0;
-    const safeProcessed = Math.max(currentProcessed, incomingProcessed);
-
     return {
       status: {
-        ...INITIAL_STATUS,
-        ...state.status,
+        ...(state.status ?? {}),
         ...newStatus,
-        events_processed: safeProcessed,
-      }
+      } as SystemStatus,
     };
   }),
 
   setWsConnected: (connected) => set({ wsConnected: connected }),
 
-  addLiveEvent: (event) => set((state) => {
-    const currentStatus = state.status || INITIAL_STATUS;
-    const newProcessed = (currentStatus.events_processed || 148520) + 1;
-    const newEps = Math.floor(Math.random() * 40) + 320;
-
-    return {
-      liveEvents: [event, ...state.liveEvents].slice(0, 100),
-      status: {
-        ...currentStatus,
-        events_processed: newProcessed,
-        events_per_second: newEps
-      }
-    };
-  }),
+  addLiveEvent: (event) => set((state) => ({
+    liveEvents: [event, ...state.liveEvents].slice(0, 200),
+    // Increment real events_processed from backend value
+    status: state.status ? {
+      ...state.status,
+      events_processed: (state.status.events_processed ?? 0) + 1,
+    } : null,
+  })),
 
   setSelectedPage: (page) => set({ selectedPage: page }),
 
+  // Called when cryptographic chain seal is broken (tamper detection)
   triggerChainIntegrityBreach: (details) => {
-    const errorMsg = details || 'SHA-256 Hash Mismatch & Ed25519 Signature Invalidation at Block #42!';
-    
+    const errorMsg = details ||
+      'SHA-256 Hash Mismatch & Ed25519 Signature Invalidation detected — log file tampering attempt!';
+
     set((state) => ({
       tamperAlertActive: true,
       tamperDetails: errorMsg,
-      status: { ...state.status, chain_intact: false },
+      status: state.status ? { ...state.status, chain_intact: false } : null,
     }));
 
+    // Auto-generate critical tamper alert
     const criticalAlert: ThreatAlert = {
-      alert_id: `CRIT-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
-      title: 'CRITICAL: Cryptographic Seal & Ed25519 Signature Integrity Breach!',
-      threat_type: 'encrypted_malware',
-      detector_id: 'det_ed25519_verifier',
-      severity: 'critical',
-      confidence: 0.99,
+      alert_id: `TAMPER-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
+      title: '🔴 CRITICAL: Ed25519 Cryptographic Seal Broken — Evidence Tampering Detected!',
+      threat_type: 'encrypted_malware' as any,
+      detector_id: 'ed25519_chain_verifier',
+      severity: 'critical' as any,
+      confidence: 1.0,
       timestamp: Date.now() / 1000,
-      description: `AUTOMATED SYSTEM CONTAINMENT: Evidence tampering attempt detected. ${errorMsg} Egress firewall locked down.`,
-      source_ips: ['10.0.0.99 (TAMPERED)'],
-      dest_ips: ['10.0.0.100'],
-      dest_ports: [443]
+      description: `SEALED ENCLAVE INTEGRITY VIOLATION: ${errorMsg} All egress channels locked. Evidence chain compromised at tamper point. Full forensic trail preserved in DuckDB.`,
+      source_ips: ['TAMPER_DETECTED'],
+      dest_ips: [],
+      dest_ports: [],
     };
 
     get().addAlert(criticalAlert);
   },
 
-  recoverChainIntegrity: () => {
-    set((state) => ({
-      tamperAlertActive: false,
-      tamperDetails: null,
-      status: { ...state.status, chain_intact: true, chain_length: (state.status.chain_length || 1485) + 1 },
-    }));
-  },
+  recoverChainIntegrity: () => set((state) => ({
+    tamperAlertActive: false,
+    tamperDetails: null,
+    status: state.status ? {
+      ...state.status,
+      chain_intact: true,
+      chain_length: (state.status.chain_length ?? 0) + 1,
+    } : null,
+  })),
 
-  trigger6DemoAttacksSignal: () => {
-    set((state) => ({
-      demoAttackSignal: state.demoAttackSignal + 1,
-      status: {
-        ...state.status,
-        events_processed: (state.status.events_processed || 148520) + 600,
-        events_per_second: 890,
-        alerts_total: state.alerts.length + 6
-      }
-    }));
-  }
+  trigger6DemoAttacksSignal: () => set((state) => ({
+    demoAttackSignal: state.demoAttackSignal + 1,
+  })),
 }));

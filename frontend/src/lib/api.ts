@@ -1,284 +1,270 @@
 import { ThreatType, Severity, ThreatAlert, SystemStatus, EvidencePackage, AlertChainEntry, DeviceProfile } from '../types';
 
 const DEFAULT_BACKEND_URL = 'https://sih-project-d3r8.onrender.com';
-const API_BASE = (import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace(/\/+$/, '') + '/api' : `${DEFAULT_BACKEND_URL}/api`);
+const API_BASE = (
+  import.meta.env.VITE_API_URL
+    ? import.meta.env.VITE_API_URL.replace(/\/+$/, '') + '/api'
+    : `${DEFAULT_BACKEND_URL}/api`
+);
 
-// Robust synthetic demonstration dataset
-export const DEMO_ALERTS: ThreatAlert[] = [
-  {
-    alert_id: "ALERT-9e2c1a8f",
-    timestamp: Date.now() / 1000 - 120,
-    threat_type: "c2_beacon",
-    detector_id: "c2_beacon_detector",
-    confidence: 0.94,
-    severity: "critical",
-    title: "Cobalt Strike C2 Beaconing Detected",
-    description: "Periodic SSL connection pattern detected matching Cobalt Strike default beacon profile (30s interval, 15% jitter, JA3: e7d705a3286e19ea42f587b344ee6865).",
-    source_ips: ["192.168.1.50"],
-    dest_ips: ["45.33.32.156"],
-    dest_ports: [443],
-    chain_hash: "8f7a9d3e1c2b4a5f6e7d8c9b0a1f2e3d4c5b6a7f8e9d0c1b2a3f4e5d6c7b8a9",
-    prev_hash: "0000000000000000000000000000000000000000000000000000000000000000",
-    chain_sequence: 1,
-    story_id: "STORY-8041"
-  },
-  {
-    alert_id: "ALERT-3f4b5c6d",
-    timestamp: Date.now() / 1000 - 350,
-    threat_type: "dns_tunnel",
-    detector_id: "dns_tunnel_detector",
-    confidence: 0.98,
-    severity: "critical",
-    title: "High-Entropy DNS Exfiltration Tunnel",
-    description: "DNS query log analysis detected high subdomain character entropy (H=4.82) over subdomains of data.evil.com requesting TXT records.",
-    source_ips: ["192.168.1.75"],
-    dest_ips: ["8.8.8.8"],
-    dest_ports: [53],
-    chain_hash: "1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2",
-    prev_hash: "8f7a9d3e1c2b4a5f6e7d8c9b0a1f2e3d4c5b6a7f8e9d0c1b2a3f4e5d6c7b8a9",
-    chain_sequence: 2,
-    story_id: "STORY-8041"
-  },
-  {
-    alert_id: "ALERT-7a8b9c0d",
-    timestamp: Date.now() / 1000 - 600,
-    threat_type: "port_scan",
-    detector_id: "port_scan_detector",
-    confidence: 0.88,
-    severity: "high",
-    title: "TCP Port Scan Sweep Detected",
-    description: "Sequential SYN connection attempts across 100 destination ports with 90% connection failure rate (S0/REJ).",
-    source_ips: ["10.0.0.200"],
-    dest_ips: ["10.0.0.50"],
-    dest_ports: [21, 22, 23, 25, 80, 443, 8080, 3389],
-    chain_hash: "9b8a7c6d5e4f3a2b1c0d9e8f7a6b5c4d3e2f1a0b9c8d7e6f5a4b3c2d1e0f9a8",
-    prev_hash: "1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2",
-    chain_sequence: 3,
-    story_id: "STORY-8041"
-  },
-  {
-    alert_id: "ALERT-1c2d3e4f",
-    timestamp: Date.now() / 1000 - 900,
-    threat_type: "encrypted_malware",
-    detector_id: "encrypted_malware_detector",
-    confidence: 0.91,
-    severity: "high",
-    title: "Suspicious TLS Traffic & Self-Signed Cert",
-    description: "X.509 certificate validation error: Self-signed certificate (CN=localhost) with 1-day validity duration.",
-    source_ips: ["192.168.1.80"],
-    dest_ips: ["185.220.101.1"],
-    dest_ports: [443],
-    chain_hash: "2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3",
-    prev_hash: "9b8a7c6d5e4f3a2b1c0d9e8f7a6b5c4d3e2f1a0b9c8d7e6f5a4b3c2d1e0f9a8",
-    chain_sequence: 4,
-    story_id: "STORY-8042"
-  },
-  {
-    alert_id: "ALERT-5e6f7a8b",
-    timestamp: Date.now() / 1000 - 1200,
-    threat_type: "exfiltration",
-    detector_id: "exfiltration_detector",
-    confidence: 0.96,
-    severity: "critical",
-    title: "Massive Outbound Volume Anomaly",
-    description: "Source host transferred 50MB outbound data to novel destination IP over EWMA baseline deviation z-score 5.4.",
-    source_ips: ["192.168.1.90"],
-    dest_ips: ["203.0.113.50"],
-    dest_ports: [443],
-    chain_hash: "3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4",
-    prev_hash: "2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3",
-    chain_sequence: 5,
-    story_id: "STORY-8042"
-  },
-  {
-    alert_id: "ALERT-8a9b0c1d",
-    timestamp: Date.now() / 1000 - 1500,
-    threat_type: "ddos",
-    detector_id: "ddos_detector",
-    confidence: 0.99,
-    severity: "critical",
-    title: "High-Volume TCP SYN Flood Attack",
-    description: "Inbound traffic rate spike detected: 1,000 SYN packets/sec targeted at internal gateway from 250 spoofed source IPs.",
-    source_ips: ["192.168.2.45", "192.168.2.98"],
-    dest_ips: ["10.0.0.100"],
-    dest_ports: [80],
-    chain_hash: "4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5",
-    prev_hash: "3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4",
-    chain_sequence: 6
+// ---------------------------------------------------------------------------
+// Helper: fetch with CORS + timeout
+// ---------------------------------------------------------------------------
+const _fetch = async (url: string, opts?: RequestInit): Promise<Response> => {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 12000); // 12s timeout (Render cold start)
+  try {
+    const res = await fetch(url, {
+      ...opts,
+      signal: controller.signal,
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        ...opts?.headers,
+      },
+    });
+    return res;
+  } finally {
+    clearTimeout(timer);
   }
-];
+};
 
+// ---------------------------------------------------------------------------
+// API client — ZERO demo fallbacks, ZERO hardcoded numbers
+// ---------------------------------------------------------------------------
 export const api = {
-  fetchAlerts: async (limit?: number, threatType?: string, minConfidence?: number): Promise<ThreatAlert[]> => {
+
+  // -------------------------------------------------------------------------
+  // Alerts
+  // -------------------------------------------------------------------------
+  fetchAlerts: async (
+    limit?: number,
+    threatType?: string,
+    minConfidence?: number
+  ): Promise<ThreatAlert[]> => {
     try {
       const params = new URLSearchParams();
       if (limit) params.append('limit', limit.toString());
       if (threatType) params.append('threat_type', threatType);
       if (minConfidence) params.append('min_confidence', minConfidence.toString());
-      const res = await fetch(`${API_BASE}/alerts?${params.toString()}`);
+
+      const res = await _fetch(`${API_BASE}/alerts?${params.toString()}`);
       if (res.ok) {
         const data = await res.json();
-        if (Array.isArray(data) && data.length > 0) return data;
-        if (data && Array.isArray(data.alerts) && data.alerts.length > 0) return data.alerts;
+        if (Array.isArray(data)) return data;
+        if (data && Array.isArray(data.alerts)) return data.alerts;
       }
-    } catch (err) {}
-    return DEMO_ALERTS;
+    } catch (err) {
+      console.warn('[ENCLIVRA] fetchAlerts failed:', err);
+    }
+    // Return empty — show 0 alerts when backend is unreachable
+    return [];
   },
 
   fetchAlert: async (id: string): Promise<ThreatAlert | null> => {
     try {
-      const res = await fetch(`${API_BASE}/alerts/${id}`);
+      const res = await _fetch(`${API_BASE}/alerts/${id}`);
       if (res.ok) {
         const data = await res.json();
         if (data && data.alert) return data.alert;
         return data;
       }
-    } catch (err) {}
-    return DEMO_ALERTS.find(a => a.alert_id === id) || DEMO_ALERTS[0];
+    } catch (err) {
+      console.warn('[ENCLIVRA] fetchAlert failed:', err);
+    }
+    return null;
   },
 
+  // -------------------------------------------------------------------------
+  // System Status
+  // -------------------------------------------------------------------------
   fetchStatus: async (): Promise<SystemStatus | null> => {
     try {
-      const res = await fetch(`${API_BASE}/status`);
+      const res = await _fetch(`${API_BASE}/status`);
       if (res.ok) {
         const data = await res.json();
-        if (data && typeof data.events_processed === 'number' && data.events_processed > 0) {
-          return data;
-        }
+        if (data && typeof data.uptime_seconds === 'number') return data;
       }
-    } catch (err) {}
-    return {
-      uptime_seconds: 172800,
-      events_processed: 148520,
-      events_per_second: 345,
-      active_detectors: 7,
-      alerts_total: 14,
-      alerts_last_hour: 4,
-      chain_length: 1485,
-      chain_intact: true
-    };
+    } catch (err) {
+      console.warn('[ENCLIVRA] fetchStatus failed:', err);
+    }
+    // Return null — dashboard shows 0 / connecting state
+    return null;
   },
 
+  // -------------------------------------------------------------------------
+  // Evidence Package (SHA-256 + Ed25519 signed)
+  // -------------------------------------------------------------------------
   fetchEvidence: async (alertId: string): Promise<EvidencePackage | null> => {
     try {
-      const res = await fetch(`${API_BASE}/evidence/${alertId}`);
+      const res = await _fetch(`${API_BASE}/evidence/${alertId}`);
       if (res.ok) {
         const data = await res.json();
         if (data && data.evidence) return data.evidence;
         return data;
       }
-    } catch (err) {}
-    const alert = DEMO_ALERTS.find(a => a.alert_id === alertId) || DEMO_ALERTS[0];
-    return {
-      version: 1,
-      created_at: Date.now() / 1000,
-      alert: alert as any,
-      chain_context: { sequence: alert.chain_sequence || 1, prev_hash: alert.prev_hash || "000", this_hash: alert.chain_hash || "111", next_hash: null },
-      supporting_events: [
-        { ts: alert.timestamp, log_type: "conn", src_ip: alert.source_ips[0], dst_ip: alert.dest_ips[0], dst_port: alert.dest_ports[0], proto: "tcp" }
-      ],
-      signature_hex: "d412e893f41270b2c159e840192a384f51e04192b83491029c849182390f1284912048f12049e102948192049182049182049182049182049182049182049182",
-      public_key_pem: "-----BEGIN PUBLIC KEY-----\nMCowKO014\n-----END PUBLIC KEY-----",
-      content_hash: "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6"
-    };
+    } catch (err) {
+      console.warn('[ENCLIVRA] fetchEvidence failed:', err);
+    }
+    return null;
   },
 
+  // -------------------------------------------------------------------------
+  // Hash Chain (Merkle ledger integrity)
+  // -------------------------------------------------------------------------
   fetchChain: async (limit?: number): Promise<AlertChainEntry[]> => {
     try {
-      const res = await fetch(`${API_BASE}/chain?limit=${limit || 50}`);
+      const res = await _fetch(`${API_BASE}/chain/entries?limit=${limit || 50}`);
       if (res.ok) {
         const data = await res.json();
-        if (Array.isArray(data) && data.length > 0) return data;
+        if (Array.isArray(data)) return data;
       }
-    } catch (err) {}
-    return DEMO_ALERTS.map((a, idx) => ({
-      sequence: (a.chain_sequence || idx + 1),
-      alert_id: a.alert_id,
-      timestamp: a.timestamp,
-      alert_hash: a.chain_hash || "8f7a9d3e1c2b4a5f6e7d8c9b0a1f2e3d4c5b6a7f8e9d0c1b2a3f4e5d6c7b8a9",
-      prev_hash: a.prev_hash || "0000000000000000000000000000000000000000000000000000000000000000",
-      alert_json: JSON.stringify(a),
-      is_heartbeat: false
-    }));
+    } catch (err) {
+      console.warn('[ENCLIVRA] fetchChain failed:', err);
+    }
+    return [];
   },
 
-  fetchDeviceProfile: async (ip: string): Promise<DeviceProfile | null> => {
+  verifyChain: async (): Promise<{ valid: boolean; chain_length: number; latest_hash: string }> => {
     try {
-      const res = await fetch(`${API_BASE}/devices/${ip}`);
+      const res = await _fetch(`${API_BASE}/chain/verify`);
       if (res.ok) return await res.json();
-    } catch (err) {}
+    } catch (err) {
+      console.warn('[ENCLIVRA] verifyChain failed:', err);
+    }
+    return { valid: false, chain_length: 0, latest_hash: '' };
+  },
+
+  // -------------------------------------------------------------------------
+  // Evidence Verification (tamper detection)
+  // -------------------------------------------------------------------------
+  verifyEvidence: async (evidenceOrId: string | any): Promise<any> => {
+    const pkg = typeof evidenceOrId === 'string' ? null : evidenceOrId;
+    const id = typeof evidenceOrId === 'string'
+      ? evidenceOrId
+      : (evidenceOrId?.alert?.alert_id || 'unknown');
+    try {
+      const res = await _fetch(`${API_BASE}/evidence/verify`, {
+        method: 'POST',
+        body: pkg ? JSON.stringify(pkg) : JSON.stringify({ alert_id: id }),
+      });
+      if (res.ok) return await res.json();
+    } catch (err) {
+      console.warn('[ENCLIVRA] verifyEvidence failed:', err);
+    }
     return {
-      ip,
-      first_seen: Date.now() / 1000 - 86400 * 7,
-      last_seen: Date.now() / 1000 - 120,
-      avg_bytes_out: 4500,
-      avg_bytes_in: 12800,
-      total_connections: 342,
-      total_bytes_out: 5400000,
-      total_bytes_in: 18900000,
-      event_count: 1420
+      hash_valid: false,
+      signature_valid: false,
+      overall_valid: false,
+      error: 'Backend unreachable',
     };
   },
 
-  submitFeedback: async (alertId: string, verdict: string, comment?: string): Promise<boolean> => {
+  // -------------------------------------------------------------------------
+  // Device Profiles / Baselines
+  // -------------------------------------------------------------------------
+  fetchDeviceProfile: async (ip: string): Promise<DeviceProfile | null> => {
     try {
-      const res = await fetch(`${API_BASE}/alerts/${alertId}/verdict`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ verdict, comment })
-      });
-      if (res.ok) return true;
-    } catch (e) {}
-    return true;
-  },
-
-  generateAttack: async (scenario: string): Promise<any> => {
-    try {
-      const res = await fetch(`${API_BASE}/demo/trigger`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ scenario })
-      });
+      const res = await _fetch(`${API_BASE}/devices/${ip}`);
       if (res.ok) return await res.json();
-    } catch (e) {}
-    return { status: 'triggered', scenario };
-  },
-
-  verifyEvidence: async (evidenceOrId: string | any): Promise<any> => {
-    const pkg = typeof evidenceOrId === 'string' ? null : evidenceOrId;
-    const id = typeof evidenceOrId === 'string' ? evidenceOrId : (evidenceOrId?.alert?.alert_id || 'unknown');
-    const contentHash = pkg?.content_hash || '';
-    try {
-      const res = await fetch(`${API_BASE}/evidence/${id}/verify`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: pkg ? JSON.stringify(pkg) : undefined
-      });
-      if (res.ok) return await res.json();
-    } catch (e) {}
-    return { hash_valid: true, signature_valid: true, overall_valid: true, computed_hash: contentHash, claimed_hash: contentHash, details: { algorithm: 'SHA-256 + Ed25519', canonical_json_length: 342 } };
+    } catch (err) {}
+    return null;
   },
 
   fetchBaselines: async (): Promise<any[]> => {
     try {
-      const res = await fetch(`${API_BASE}/network/baselines`);
+      const res = await _fetch(`${API_BASE}/baselines`);
       if (res.ok) return await res.json();
-    } catch (e) {}
-    return [
-      { src_ip: '192.168.1.50', baseline_eps: 12.5, current_eps: 45.8, status: 'ANOMALOUS' },
-      { src_ip: '192.168.1.75', baseline_eps: 8.2,  current_eps: 98.4, status: 'CRITICAL' }
-    ];
+    } catch (err) {}
+    return [];
   },
 
+  // -------------------------------------------------------------------------
+  // Attack Simulation
+  // -------------------------------------------------------------------------
+  generateAttack: async (scenario: string): Promise<any> => {
+    try {
+      const endpoint = scenario === 'all'
+        ? `${API_BASE}/generate/all`
+        : `${API_BASE}/generate/${scenario}`;
+      const res = await _fetch(endpoint, { method: 'POST' });
+      if (res.ok) return await res.json();
+    } catch (err) {
+      console.warn('[ENCLIVRA] generateAttack failed:', err);
+    }
+    return { status: 'error', message: 'Backend unreachable' };
+  },
+
+  // -------------------------------------------------------------------------
+  // Analyst Feedback → ML retraining
+  // -------------------------------------------------------------------------
+  submitFeedback: async (alertId: string, verdict: string, comment?: string): Promise<boolean> => {
+    try {
+      const res = await _fetch(`${API_BASE}/feedback/${alertId}`, {
+        method: 'POST',
+        body: JSON.stringify({ verdict, notes: comment }),
+      });
+      return res.ok;
+    } catch (err) {}
+    return false;
+  },
+
+  // -------------------------------------------------------------------------
+  // ML Model Status
+  // -------------------------------------------------------------------------
+  fetchMLStatus: async (): Promise<any> => {
+    try {
+      const res = await _fetch(`${API_BASE}/ml/status`);
+      if (res.ok) return await res.json();
+    } catch (err) {}
+    return null;
+  },
+
+  // -------------------------------------------------------------------------
+  // IOC / Retro-Hunt
+  // -------------------------------------------------------------------------
   runRetrohunt: async (type: string, value?: string): Promise<any> => {
     try {
-      const res = await fetch(`${API_BASE}/retrohunt/search`, {
+      const res = await _fetch(`${API_BASE}/retrohunt`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type, value })
+        body: JSON.stringify({ type, value }),
       });
       if (res.ok) return await res.json();
-    } catch (e) {}
-    return { status: 'completed', matches_found: 2, query: { type, value }, hits: [{ timestamp: Date.now()/1000 - 1200, rule: 'Retroactive IOC Match', ip: value || '192.168.1.75' }] };
-  }
+    } catch (err) {}
+    return { status: 'error', message: 'Backend unreachable' };
+  },
+
+  addIOC: async (type: string, value: string, description?: string): Promise<any> => {
+    try {
+      const res = await _fetch(`${API_BASE}/ioc`, {
+        method: 'POST',
+        body: JSON.stringify({ type, value, description }),
+      });
+      if (res.ok) return await res.json();
+    } catch (err) {}
+    return null;
+  },
+
+  // -------------------------------------------------------------------------
+  // Analytics
+  // -------------------------------------------------------------------------
+  fetchAnalytics: async (): Promise<any> => {
+    try {
+      const res = await _fetch(`${API_BASE}/analytics`);
+      if (res.ok) return await res.json();
+    } catch (err) {}
+    return null;
+  },
+
+  // -------------------------------------------------------------------------
+  // Detectors
+  // -------------------------------------------------------------------------
+  fetchDetectors: async (): Promise<any[]> => {
+    try {
+      const res = await _fetch(`${API_BASE}/detectors`);
+      if (res.ok) return await res.json();
+    } catch (err) {}
+    return [];
+  },
+
 };

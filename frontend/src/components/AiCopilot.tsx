@@ -173,8 +173,8 @@ function getReply(q: string, alerts: any[], status: any, triggerAttacks?: () => 
 
   if (lq.includes('ciso') || lq.includes('summary') || lq.includes('report') || lq.includes('brief')) {
     const total = status?.alerts_total || alerts.length;
-    const eps = status?.events_per_second || 345;
-    const processed = (status?.events_processed || 148520).toLocaleString();
+    const eps = status?.events_per_second ?? 0;
+    const processed = (status?.events_processed ?? 0).toLocaleString();
     return `📋 <strong>CISO Executive Summary:</strong><br><br>• <strong>Events Processed:</strong> ${processed}<br>• <strong>Live EPS:</strong> ${eps}/sec<br>• <strong>Active Threats:</strong> ${total} alerts<br>• <strong>Primary Vector:</strong> C2 Beaconing + DNS Exfiltration<br>• <strong>Evidence Ledger:</strong> ${status?.chain_intact !== false ? '✅ INTACT' : '❌ COMPROMISED'}<br>• <strong>Action:</strong> Isolate 192.168.1.50; null-route 45.33.32.156`;
   }
 

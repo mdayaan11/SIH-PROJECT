@@ -42,7 +42,7 @@ export default function OverviewPage() {
     }
   }, [status]);
 
-  const uptimeHours = Math.floor((status?.uptime_seconds || 14400) / 3600);
+  const uptimeHours = Math.floor((status?.uptime_seconds ?? 0) / 3600);
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-12 text-slate-950 font-sans">
@@ -66,14 +66,13 @@ export default function OverviewPage() {
         </div>
       </div>
 
-      {/* Top 6 Metric Cards Row */}
       <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
-        <StatCard label="UPTIME (H)" value={uptimeHours || 48} icon={Clock} />
+        <StatCard label="UPTIME (H)" value={uptimeHours} icon={Clock} />
         <StatCard label="EVENTS PROCESSED" value={(status?.events_processed ?? 0).toLocaleString()} icon={Activity} variant="cyan" />
-        <StatCard label="ACTIVE DETECTORS" value={status?.active_detectors ?? 7} icon={Cpu} variant="green" />
-        <StatCard label="TOTAL ALERTS" value={status?.alerts_total ?? (alerts.length || 14)} icon={Shield} variant="red" />
-        <StatCard label="VERIFIED CHAIN" value={(status?.chain_length ?? 1485).toLocaleString()} icon={FileText} variant="orange" />
-        <StatCard label="SYSTEM HEALTH" value={status?.chain_intact !== false ? '100% HEALTHY' : 'DEGRADED'} icon={HeartPulse} variant={status?.chain_intact !== false ? 'green' : 'red'} />
+        <StatCard label="ACTIVE DETECTORS" value={status?.active_detectors ?? 0} icon={Cpu} variant="green" />
+        <StatCard label="TOTAL ALERTS" value={status?.alerts_total ?? alerts.length} icon={Shield} variant="red" />
+        <StatCard label="VERIFIED CHAIN" value={(status?.chain_length ?? 0).toLocaleString()} icon={FileText} variant="orange" />
+        <StatCard label="SYSTEM HEALTH" value={status == null ? 'CONNECTING…' : status?.chain_intact !== false ? '100% HEALTHY' : 'DEGRADED'} icon={HeartPulse} variant={status?.chain_intact !== false ? 'green' : 'red'} />
       </div>
 
       {/* Cryptographic Visual Pipeline Flow */}
@@ -103,15 +102,15 @@ export default function OverviewPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 text-xs font-semibold text-slate-950">
-                  {(alerts.length > 0 ? alerts : [
-                    { id: '1', title: 'Cobalt Strike C2 Beaconing Detected', type: 'c2_beacon', confidence: 0.94, timestamp: Date.now() / 1000 - 300 },
-                    { id: '2', title: 'High-Entropy DNS Exfiltration Tunnel', type: 'dns_tunnel', confidence: 0.98, timestamp: Date.now() / 1000 - 900 },
-                    { id: '3', title: 'TCP Port Scan Sweep Detected', type: 'port_scan', confidence: 0.88, timestamp: Date.now() / 1000 - 1800 },
-                  ]).slice(0, 8).map((alert) => {
+                  {alerts.length === 0 ? (
+                    <tr><td colSpan={5} className="py-10 text-center text-slate-500 font-mono text-xs">
+                      {status == null ? 'Connecting to ENCLIVRA backend…' : '0 alerts — press Test Threat to inject all 6 attack simulations'}
+                    </td></tr>
+                  ) : alerts.slice(0, 8).map((alert) => {
                     const alertId = alert.alert_id || (alert as any).id;
                     const threatType = alert.threat_type || (alert as any).type;
-                    const ts = typeof alert.timestamp === 'number' ? alert.timestamp * 1000 : Date.parse(alert.timestamp as any) || Date.now();
-                    const confPercent = Math.round((alert.confidence || 0.9) * 100);
+                    const ts = typeof alert.timestamp === 'number' ? alert.timestamp * 1000 : Date.parse(alert.timestamp as any);
+                    const confPercent = Math.round((alert.confidence || 0) * 100);
 
                     return (
                       <tr key={alertId} className="hover:bg-cyan-50/50 transition-colors">
@@ -155,9 +154,9 @@ export default function OverviewPage() {
           <CardContent className="p-4 flex-1 flex flex-col justify-center">
             <div className="h-60 w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={epsData.length > 0 ? epsData : [{ time: '12:00', eps: 90 }, { time: '12:01', eps: 180 }, { time: '12:02', eps: 270 }, { time: '12:03', eps: 360 }]}>
+                <LineChart data={epsData.length > 0 ? epsData : []}>
                   <XAxis dataKey="time" stroke="#475569" fontSize={10} tickLine={false} />
-                  <YAxis stroke="#475569" fontSize={10} tickLine={false} domain={[0, 360]} />
+                  <YAxis stroke="#475569" fontSize={10} tickLine={false} domain={['auto', 'auto']} />
                   <Tooltip
                     contentStyle={{ backgroundColor: 'rgba(255, 255, 255, 0.95)', borderRadius: '14px', border: '1px solid #cbd5e1', color: '#0f172a', fontWeight: 'bold' }}
                   />

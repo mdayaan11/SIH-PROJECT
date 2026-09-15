@@ -36,7 +36,7 @@ export default function OverviewPage() {
   useEffect(() => {
     if (status) {
       setEpsData(prev => {
-        const newData = [...prev, { time: new Date().toLocaleTimeString(), eps: status.events_per_second || Math.floor(Math.random() * 40) + 120 }];
+        const newData = [...prev, { time: new Date().toLocaleTimeString(), eps: status.events_per_second ?? 0 }];
         return newData.slice(-30);
       });
     }

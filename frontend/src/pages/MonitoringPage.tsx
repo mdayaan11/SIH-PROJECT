@@ -12,30 +12,7 @@ export default function MonitoringPage() {
   const [filterProto, setFilterProto] = useState<string>('');
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Auto populate sample telemetry events if empty
-  useEffect(() => {
-    if (liveEvents.length === 0) {
-      const sampleIps = ['192.168.1.50', '45.33.32.156', '192.168.1.75', '10.0.0.200', '185.220.101.1', '192.168.1.90'];
-      const sampleProtos = ['TCP', 'UDP', 'DNS', 'HTTPS', 'TLS'];
-      
-      sampleIps.forEach((ip, i) => {
-        addLiveEvent({
-          uid: `INIT-${i+1}`,
-          proto: sampleProtos[i % sampleProtos.length],
-          protocol: sampleProtos[i % sampleProtos.length],
-          src_ip: ip,
-          dst_ip: '10.0.0.1',
-          dst_port: 443,
-          orig_bytes: 1024 + i * 256,
-          resp_bytes: 4096 + i * 512,
-          ts: (Date.now() / 1000) - (i * 5),
-          severity: i % 2 === 0 ? 'critical' : 'high',
-          threat_type: 'C2 Beaconing'
-        });
-      });
-    }
-  }, []);
-
+  // Auto-scroll when new live events arrive
   useEffect(() => {
     if (autoScroll && scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;

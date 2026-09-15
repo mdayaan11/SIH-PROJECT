@@ -216,7 +216,7 @@ function App() {
           useStore.getState().setStatus(liveStatus);
         }
         const liveAlerts = await api.fetchAlerts(500);
-        if (Array.isArray(liveAlerts) && liveAlerts.length > 0) {
+        if (Array.isArray(liveAlerts)) {
           useStore.getState().setAlerts(liveAlerts);
         }
       } catch (e) {}

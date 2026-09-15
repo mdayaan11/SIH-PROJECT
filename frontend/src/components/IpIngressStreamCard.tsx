@@ -1,131 +1,125 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Card, CardContent, CardTitle, CardDescription } from './ui/card';
 import { Pause, Play, Zap, Trash2 } from 'lucide-react';
 import { useStore } from '../store/useStore';
+import { api } from '../lib/api';
 
-export const IP_POOL = [
-  { ip: '192.168.1.50',   proto: 'TCP/SSL', port: 443, sev: 'critical', type: 'C2 Beacon',    geo: 'Internal Subnet' },
-  { ip: '45.33.32.156',   proto: 'HTTPS',   port: 443, sev: 'critical', type: 'Adversary C2', geo: 'US-East AWS' },
-  { ip: '192.168.1.75',   proto: 'DNS',     port: 53,  sev: 'critical', type: 'DNS Tunnel',   geo: 'Internal Workstation' },
-  { ip: '10.0.0.200',     proto: 'TCP SYN', port: 80,  sev: 'high',    type: 'Port Sweep',    geo: 'Internal DMZ' },
-  { ip: '185.220.101.1',  proto: 'TLS 1.3', port: 443, sev: 'high',    type: 'Self-Signed',   geo: 'DE-Frankfurt' },
-  { ip: '192.168.1.90',   proto: 'TCP',     port: 443, sev: 'critical', type: 'Exfiltration',  geo: 'Internal Server' },
-  { ip: '203.0.113.50',   proto: 'HTTP',    port: 80,  sev: 'critical', type: 'Data Drop',     geo: 'RU-Moscow' },
-  { ip: '192.168.2.45',   proto: 'UDP SYN', port: 53,  sev: 'critical', type: 'SYN Flood',    geo: 'Internal Subnet' },
-  { ip: '172.16.0.14',    proto: 'TCP/SSH', port: 22,  sev: 'normal',   type: 'Internal Sync', geo: 'Internal Node' },
-  { ip: '198.51.100.88',  proto: 'HTTPS',   port: 443, sev: 'normal',   type: 'Relay Proxy',   geo: 'IN-Mumbai' },
-] as const;
+// ---------------------------------------------------------------------------
+// Severity helpers
+// ---------------------------------------------------------------------------
+const sevColor = (sev: string) => ({
+  critical: 'bg-red-100 border-red-400 text-red-900',
+  high:     'bg-amber-100 border-amber-400 text-amber-900',
+  medium:   'bg-orange-100 border-orange-400 text-orange-900',
+  low:      'bg-cyan-100 border-cyan-400 text-cyan-900',
+  normal:   'bg-cyan-100 border-cyan-400 text-cyan-900',
+}[sev?.toLowerCase()] ?? 'bg-slate-100 border-slate-300 text-slate-900');
 
-export type IpEntry = {
-  key: number;
-  ip: string;
-  proto: string;
-  port: number;
-  sev: string;
-  type: string;
-  geo: string;
-  ts: string;
-};
+const sevBorderL = (sev: string) => ({
+  critical: 'border-l-red-500',
+  high:     'border-l-amber-500',
+  medium:   'border-l-orange-500',
+  low:      'border-l-cyan-500',
+  normal:   'border-l-cyan-500',
+}[sev?.toLowerCase()] ?? 'border-l-slate-400');
 
-export function IpIngressStreamCard() {
-  const addLiveEvent = useStore(state => state.addLiveEvent);
-  const demoAttackSignal = useStore(state => state.demoAttackSignal);
-  const [ipFeed, setIpFeed] = useState<IpEntry[]>([]);
-  const [pillFeed, setPillFeed] = useState<IpEntry[]>([]);
-  const [streamRunning, setStreamRunning] = useState(true);
-  const [speedLabel, setSpeedLabel] = useState('1× Speed');
-  const speedMs = useRef(1400);
-  const poolIdx = useRef(0);
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const keyRef = useRef(0);
-  const streamRunningRef = useRef(true);
+// ---------------------------------------------------------------------------
+// Derived fields from a real backend alert
+// ---------------------------------------------------------------------------
+function alertToEntry(alert: any, key: number) {
+  const sev = alert.severity ?? 'medium';
+  const ip  = (alert.source_ips?.[0] ?? alert.src_ip ?? '0.0.0.0');
+  const type = (alert.threat_type ?? 'unknown').replace(/_/g, ' ').toUpperCase();
+  const port = alert.dest_ports?.[0] ?? alert.dst_port ?? 0;
+  const proto = alert.evidence?.proto ?? alert.proto ?? 'TCP';
+  const country = alert.geo_enrichment?.[ip]?.country ?? '';
+  const city    = alert.geo_enrichment?.[ip]?.city    ?? '';
+  const geo = country && city ? `${city}, ${country}` : country || 'Unknown';
 
-  const pushPacket = (override?: Partial<IpEntry>) => {
-    const defaultPkt = IP_POOL[poolIdx.current % IP_POOL.length];
-    poolIdx.current++;
-    const tsStr = new Date().toLocaleTimeString();
-    const entry: IpEntry = {
-      key: keyRef.current++,
-      ip: override?.ip || defaultPkt.ip,
-      proto: override?.proto || defaultPkt.proto,
-      port: override?.port || defaultPkt.port,
-      sev: override?.sev || defaultPkt.sev,
-      type: override?.type || defaultPkt.type,
-      geo: override?.geo || defaultPkt.geo,
-      ts: tsStr
-    };
-
-    setPillFeed(prev => [entry, ...prev].slice(0, 8));
-    setIpFeed(prev => [entry, ...prev].slice(0, 12));
-
-    addLiveEvent({
-      uid: `PKT-${entry.key}`,
-      proto: entry.proto.split('/')[0],
-      protocol: entry.proto.split('/')[0],
-      src_ip: entry.ip,
-      dst_ip: '10.0.0.1',
-      dst_port: entry.port,
-      orig_bytes: Math.floor(Math.random() * 2000) + 128,
-      resp_bytes: Math.floor(Math.random() * 8000) + 256,
-      ts: Date.now() / 1000,
-      severity: entry.sev,
-      threat_type: entry.type
-    });
+  return {
+    key,
+    ip,
+    proto: proto.toUpperCase(),
+    port,
+    sev: sev.toLowerCase(),
+    type,
+    geo,
+    ts: new Date((alert.timestamp ?? Date.now() / 1000) * 1000).toLocaleTimeString(),
+    isReal: true,
   };
+}
 
-  useEffect(() => {
-    pushPacket(); pushPacket(); pushPacket();
-    timerRef.current = setInterval(() => {
-      if (streamRunningRef.current) pushPacket();
-    }, speedMs.current);
-    return () => { if (timerRef.current) clearInterval(timerRef.current); };
+// ---------------------------------------------------------------------------
+// Component
+// ---------------------------------------------------------------------------
+export function IpIngressStreamCard() {
+  const liveEvents    = useStore(state => state.liveEvents);
+  const alerts        = useStore(state => state.alerts);
+  const wsConnected   = useStore(state => state.wsConnected);
+  const demoAttackSignal = useStore(state => state.demoAttackSignal);
+
+  const [feed, setFeed]           = useState<any[]>([]);
+  const [pillFeed, setPillFeed]   = useState<any[]>([]);
+  const [paused, setPaused]       = useState(false);
+  const [triggering, setTriggering] = useState(false);
+  const keyRef = useRef(0);
+  const pausedRef = useRef(false);
+
+  const pushEntry = useCallback((entry: any) => {
+    if (pausedRef.current) return;
+    const e = { ...entry, key: keyRef.current++ };
+    setPillFeed(prev => [e, ...prev].slice(0, 8));
+    setFeed(prev => [e, ...prev].slice(0, 50));
   }, []);
 
-  // React instantly to 6 Demo Attacks trigger signal from Copilot
+  // Feed from real backend alerts
   useEffect(() => {
-    if (demoAttackSignal > 0) {
-      const freshAttacks = [
-        { ip: '185.220.101.99', proto: 'TCP/SSL', port: 443, sev: 'critical', type: 'C2 Beaconing', geo: 'US-East C2' },
-        { ip: '192.168.1.105', proto: 'DNS',     port: 53,  sev: 'critical', type: 'DNS Exfil',     geo: 'Internal Host' },
-        { ip: '192.168.2.88',  proto: 'UDP SYN', port: 80,  sev: 'high',     type: 'SYN Flood',    geo: 'Internal Gateway' },
-        { ip: '203.0.113.199', proto: 'TLS 1.3', port: 443, sev: 'critical', type: 'JA3 Malware',   geo: 'RU-Moscow Node' },
-        { ip: '10.0.0.155',    proto: 'TCP SYN', port: 22,  sev: 'high',     type: 'Port Sweep',    geo: 'DMZ Subnet' },
-        { ip: '198.51.100.44', proto: 'HTTP',    port: 8080,sev: 'critical', type: 'Data Drop',     geo: 'External Drop' },
-      ];
+    if (alerts.length === 0) return;
+    const latest = alerts[0];
+    if (!latest) return;
+    pushEntry(alertToEntry(latest, keyRef.current));
+  }, [alerts.length]);
 
-      freshAttacks.forEach((atk, index) => {
-        setTimeout(() => {
-          pushPacket(atk);
-        }, index * 120);
-      });
-    }
+  // Feed from real WebSocket live events
+  useEffect(() => {
+    if (liveEvents.length === 0) return;
+    const ev = liveEvents[0];
+    if (!ev || ev._displayed) return;
+    const sev = ev.severity?.toLowerCase() ?? 'normal';
+    const type = (ev.threat_type ?? ev.log_type ?? 'EVENT').replace(/_/g, ' ').toUpperCase();
+    pushEntry({
+      key: keyRef.current++,
+      ip: ev.src_ip ?? '—',
+      proto: (ev.proto ?? 'TCP').toUpperCase(),
+      port: ev.dst_port ?? 0,
+      sev,
+      type,
+      geo: '',
+      ts: new Date((ev.ts ?? Date.now() / 1000) * 1000).toLocaleTimeString(),
+      isReal: true,
+    });
+  }, [liveEvents.length]);
+
+  // "Test Threat" button — calls real backend to inject all 6 attacks
+  const handleTestThreat = async () => {
+    if (triggering) return;
+    setTriggering(true);
+    try {
+      await api.generateAttack('all');
+    } catch (_) {}
+    setTimeout(() => setTriggering(false), 4000);
+  };
+
+  // Also handle demoAttackSignal from AI Copilot — calls real backend
+  useEffect(() => {
+    if (demoAttackSignal > 0) handleTestThreat();
   }, [demoAttackSignal]);
 
-  const toggleStream = () => {
-    const next = !streamRunningRef.current;
-    streamRunningRef.current = next;
-    setStreamRunning(next);
+  const togglePause = () => {
+    const next = !pausedRef.current;
+    pausedRef.current = next;
+    setPaused(next);
   };
-
-  const toggleSpeed = () => {
-    if (timerRef.current) clearInterval(timerRef.current);
-    if (speedMs.current === 1400)      { speedMs.current = 700;  setSpeedLabel('2× Speed'); }
-    else if (speedMs.current === 700)  { speedMs.current = 300;  setSpeedLabel('5× Speed'); }
-    else                               { speedMs.current = 1400; setSpeedLabel('1× Speed'); }
-    timerRef.current = setInterval(() => { if (streamRunningRef.current) pushPacket(); }, speedMs.current);
-  };
-
-  const sevColor = (sev: string) => ({
-    critical: 'bg-red-100 border-red-400 text-red-900',
-    high:     'bg-amber-100 border-amber-400 text-amber-900',
-    normal:   'bg-cyan-100 border-cyan-400 text-cyan-900'
-  }[sev] ?? 'bg-slate-100 border-slate-300 text-slate-900');
-
-  const sevBorderL = (sev: string) => ({
-    critical: 'border-l-red-500',
-    high:     'border-l-amber-500',
-    normal:   'border-l-cyan-500'
-  }[sev] ?? 'border-l-slate-400');
 
   return (
     <Card className="glass-light-card border-2 border-cyan-400 rounded-3xl shadow-xl overflow-hidden font-sans">
@@ -145,39 +139,60 @@ export function IpIngressStreamCard() {
         <div>
           <div className="flex items-center gap-2 mb-0.5">
             <span className="relative flex h-3 w-3">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-500 opacity-75" />
-              <span className="relative inline-flex rounded-full h-3 w-3 bg-cyan-600" />
+              <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${wsConnected ? 'bg-cyan-500' : 'bg-amber-400'} opacity-75`} />
+              <span className={`relative inline-flex rounded-full h-3 w-3 ${wsConnected ? 'bg-cyan-600' : 'bg-amber-500'}`} />
             </span>
             <CardTitle className="text-base font-black text-slate-900 tracking-tight flex items-center gap-2">
-              Live IP Ingress Motion Stream
+              Live IP Ingress Stream
+              <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full border ${wsConnected ? 'bg-green-100 border-green-400 text-green-800' : 'bg-amber-100 border-amber-400 text-amber-800'}`}>
+                {wsConnected ? '● LIVE' : '○ CONNECTING'}
+              </span>
             </CardTitle>
           </div>
           <CardDescription className="text-xs text-slate-600 font-medium">
-            Incoming threat IP telemetry arriving one-by-one in real-time motion.
+            Real-time threat events from ENCLIVRA detection pipeline — SHA-256 sealed.
           </CardDescription>
         </div>
 
         <div className="flex items-center gap-2 flex-wrap font-mono">
-          <button onClick={toggleSpeed} className="px-3 py-1.5 text-xs font-black bg-cyan-100 border border-cyan-400 text-cyan-900 rounded-xl hover:bg-cyan-200 transition-all">
-            {speedLabel}
+          <button
+            onClick={togglePause}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-black bg-white border border-slate-300 text-slate-900 rounded-xl hover:bg-slate-100 transition-all"
+          >
+            {paused ? <Play className="w-3.5 h-3.5 text-emerald-700" /> : <Pause className="w-3.5 h-3.5" />}
+            {paused ? 'Resume' : 'Pause'}
           </button>
-          <button onClick={toggleStream} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-black bg-white border border-slate-300 text-slate-900 rounded-xl hover:bg-slate-100 transition-all">
-            {streamRunning ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5 text-emerald-700" />}
-            {streamRunning ? 'Pause' : 'Resume'}
-          </button>
-          <button onClick={() => { setIpFeed([]); setPillFeed([]); }} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-black bg-white border border-slate-300 text-slate-700 rounded-xl hover:bg-red-50 hover:border-red-300 hover:text-red-800 transition-all">
+          <button
+            onClick={() => { setFeed([]); setPillFeed([]); }}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-black bg-white border border-slate-300 text-slate-700 rounded-xl hover:bg-red-50 hover:border-red-300 hover:text-red-800 transition-all"
+          >
             <Trash2 className="w-3.5 h-3.5" /> Clear
           </button>
-          <button onClick={() => useStore.getState().trigger6DemoAttacksSignal()} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-black bg-red-100 border border-red-400 text-red-900 rounded-xl hover:bg-red-200 transition-all">
-            <Zap className="w-3.5 h-3.5" /> Test Threat
+          <button
+            onClick={handleTestThreat}
+            disabled={triggering}
+            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-black rounded-xl border transition-all ${
+              triggering
+                ? 'bg-slate-100 border-slate-300 text-slate-400 cursor-not-allowed'
+                : 'bg-red-100 border-red-400 text-red-900 hover:bg-red-200'
+            }`}
+          >
+            <Zap className="w-3.5 h-3.5" />
+            {triggering ? 'Injecting…' : 'Test Threat'}
           </button>
         </div>
       </div>
 
       <CardContent className="p-5 space-y-4">
-        {/* Horizontal Motion Pill Track */}
+        {/* Horizontal pill scroller */}
         <div className="w-full h-14 bg-slate-950 rounded-2xl border border-slate-700 overflow-hidden flex items-center px-4 gap-3">
-          {pillFeed.length === 0 && <span className="text-xs font-mono text-slate-500">Awaiting incoming telemetry packets…</span>}
+          {feed.length === 0 && (
+            <span className="text-xs font-mono text-slate-500">
+              {wsConnected
+                ? 'Awaiting first detection event… press "Test Threat" to inject all 6 attacks'
+                : 'Connecting to ENCLIVRA backend…'}
+            </span>
+          )}
           {pillFeed.map(p => (
             <span
               key={p.key}
@@ -191,10 +206,16 @@ export function IpIngressStreamCard() {
           ))}
         </div>
 
-        {/* Sequential Motion Rows */}
+        {/* Sequential rows */}
         <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
-          {ipFeed.length === 0 && <div className="text-xs text-slate-500 text-center py-8 font-mono">Waiting for packets…</div>}
-          {ipFeed.map(p => (
+          {feed.length === 0 && (
+            <div className="text-xs text-slate-500 text-center py-10 font-mono">
+              {wsConnected
+                ? '0 events — press "Test Threat" to trigger all 6 attack simulations via backend'
+                : 'Connecting to live backend…'}
+            </div>
+          )}
+          {feed.map(p => (
             <div
               key={p.key}
               style={{ animation: 'ipRowIn 0.38s cubic-bezier(0.16,1,0.3,1) both' }}
@@ -208,11 +229,11 @@ export function IpIngressStreamCard() {
                   {p.type}
                 </span>
                 <span className="text-[11px] text-slate-500 hidden sm:inline truncate">
-                  {p.proto}:{p.port}
+                  {p.proto}{p.port ? `:${p.port}` : ''}
                 </span>
               </div>
               <div className="flex items-center gap-3 shrink-0 font-mono">
-                <span className="text-[11px] text-slate-500 hidden md:inline">{p.geo}</span>
+                {p.geo && <span className="text-[11px] text-slate-500 hidden md:inline">{p.geo}</span>}
                 <span className="text-[11px] text-slate-400">{p.ts}</span>
               </div>
             </div>

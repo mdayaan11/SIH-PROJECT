@@ -1,67 +1,120 @@
-import { io, Socket } from 'socket.io-client';
+/**
+ * Native WebSocket client for ENCLIVRA backend.
+ * Backend: FastAPI /ws/alerts endpoint (native WS, NOT Socket.IO)
+ * Reconnects automatically with exponential backoff.
+ */
 import { useStore } from '../store/useStore';
 
-let socket: Socket | null = null;
-let fallbackInterval: any = null;
+const DEFAULT_BACKEND_URL = 'https://sih-project-d3r8.onrender.com';
+const WS_BASE = (() => {
+  const base = import.meta.env.VITE_API_URL || import.meta.env.VITE_WS_URL || DEFAULT_BACKEND_URL;
+  return base.replace(/^http/, 'ws').replace(/\/+$/, '');
+})();
 
-export const connectWs = () => {
-  const store = useStore.getState();
+let ws: WebSocket | null = null;
+let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+let reconnectDelay = 1000;
+let shouldReconnect = true;
 
-  const DEFAULT_BACKEND_URL = 'https://sih-project-d3r8.onrender.com';
-  const socketUrl = import.meta.env.VITE_SOCKETIO_URL || import.meta.env.VITE_WS_URL || DEFAULT_BACKEND_URL;
+// Poll REST /api/status every 5s as the primary data source
+let statusPollTimer: ReturnType<typeof setInterval> | null = null;
+// Poll REST /api/alerts every 5s for initial data + refresh
+let alertsPollTimer: ReturnType<typeof setInterval> | null = null;
+
+async function pollStatus() {
+  try {
+    const res = await fetch(`${DEFAULT_BACKEND_URL}/api/status`, { signal: AbortSignal.timeout(8000) });
+    if (res.ok) {
+      const data = await res.json();
+      if (data && typeof data.uptime_seconds === 'number') {
+        useStore.getState().setStatus(data);
+      }
+    }
+  } catch (_) {}
+}
+
+async function pollAlerts() {
+  try {
+    const res = await fetch(`${DEFAULT_BACKEND_URL}/api/alerts?limit=100`, { signal: AbortSignal.timeout(8000) });
+    if (res.ok) {
+      const data = await res.json();
+      const alerts = Array.isArray(data) ? data : (data?.alerts ?? []);
+      if (Array.isArray(alerts)) {
+        useStore.getState().setAlerts(alerts);
+      }
+    }
+  } catch (_) {}
+}
+
+function connectWsSocket() {
+  if (!shouldReconnect) return;
 
   try {
-    socket = io(socketUrl, {
-      transports: ['websocket', 'polling'],
-      reconnection: true,
-      reconnectionAttempts: Infinity,
-      reconnectionDelay: 1000,
-      reconnectionDelayMax: 5000,
-      timeout: 20000,
-      autoConnect: true,
-    });
+    ws = new WebSocket(`${WS_BASE}/ws/alerts`);
 
-    socket.on('connect', () => {
-      console.log('Socket.IO Connection Established:', socket?.id);
+    ws.onopen = () => {
+      console.log('[ENCLIVRA] WebSocket connected to', WS_BASE);
       useStore.getState().setWsConnected(true);
-    });
+      reconnectDelay = 1000; // reset backoff on success
+    };
 
-    socket.on('disconnect', (reason) => {
-      console.warn('Socket.IO Disconnected:', reason);
-      // If server disconnects, Socket.IO automatically attempts reconnection
-      if (reason === 'io server disconnect') {
-        socket?.connect();
+    ws.onmessage = (evt) => {
+      try {
+        const msg = JSON.parse(evt.data);
+        const { type, data } = msg;
+
+        if (type === 'alert' && data) {
+          useStore.getState().addAlert(data);
+        } else if (type === 'event' && data) {
+          useStore.getState().addLiveEvent(data);
+        } else if (type === 'status' && data) {
+          useStore.getState().setStatus(data);
+        }
+      } catch (_) {}
+    };
+
+    ws.onerror = () => {
+      // Will trigger onclose
+    };
+
+    ws.onclose = () => {
+      ws = null;
+      useStore.getState().setWsConnected(false);
+      if (shouldReconnect) {
+        // Exponential backoff capped at 15s
+        reconnectDelay = Math.min(reconnectDelay * 1.5, 15000);
+        console.log(`[ENCLIVRA] WS closed, reconnecting in ${Math.round(reconnectDelay / 1000)}s…`);
+        reconnectTimer = setTimeout(connectWsSocket, reconnectDelay);
       }
-      useStore.getState().setWsConnected(true); // Maintain resilient fallback stream for UI stability
-    });
-
-    socket.on('connect_error', (error) => {
-      console.warn('Socket.IO Connect Warning:', error.message);
-      // Keep UI status active with fallback simulation so static deployments stay 100% online
-      useStore.getState().setWsConnected(true);
-    });
-
-    socket.on('alert', (data) => {
-      useStore.getState().addAlert(data);
-    });
-
-    socket.on('event', (data) => {
-      useStore.getState().addLiveEvent(data);
-    });
-
-    socket.on('status', (data) => {
-      useStore.getState().setStatus(data);
-    });
-
+    };
   } catch (err) {
-    console.error('Socket.IO initialization error:', err);
-    useStore.getState().setWsConnected(true);
+    console.warn('[ENCLIVRA] WebSocket init error:', err);
+    useStore.getState().setWsConnected(false);
+    reconnectTimer = setTimeout(connectWsSocket, reconnectDelay);
   }
+}
 
+export const connectWs = () => {
+  shouldReconnect = true;
+
+  // 1. Immediately start REST polling (works even when WS is asleep on Render free tier)
+  pollStatus();
+  pollAlerts();
+  statusPollTimer = setInterval(pollStatus, 5000);
+  alertsPollTimer = setInterval(pollAlerts, 7000);
+
+  // 2. Also try live WebSocket for real-time push
+  connectWsSocket();
+
+  // Return cleanup
   return () => {
-    if (socket) {
-      socket.disconnect();
-      socket = null;
+    shouldReconnect = false;
+    if (reconnectTimer) clearTimeout(reconnectTimer);
+    if (statusPollTimer) clearInterval(statusPollTimer);
+    if (alertsPollTimer) clearInterval(alertsPollTimer);
+    if (ws) {
+      ws.close();
+      ws = null;
     }
   };
 };
